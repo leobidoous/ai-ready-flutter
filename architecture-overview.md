@@ -6,11 +6,20 @@ Este documento define **responsabilidades específicas** de cada camada na Clean
 
 ### 🎯 Objetivos das Abstrações
 
-- **Inversão de Dependências**: Camadas superiores não dependem de implementações concretas
-- **Testabilidade**: Facilita criação de mocks e testes unitários
-- **Flexibilidade**: Permite múltiplas implementações sem quebrar o código
-- **Manutenibilidade**: Mudanças em uma camada não afetam outras
-- **Princípio Aberto/Fechado**: Aberto para extensão, fechado para modificação
+- **Inversão de Dependências (DIP)**: Camadas superiores dependem de abstrações, não implementações
+- **Testabilidade**: Facilita criação de mocks e testes unitários isolados
+- **Flexibilidade**: Permite múltiplas implementações sem quebrar contratos
+- **Manutenibilidade**: Mudanças em uma camada não propagam para outras
+- **Princípio Aberto/Fechado (OCP)**: Aberto para extensão, fechado para modificação
+- **Interface Segregation (ISP)**: Interfaces específicas e coesas
+
+### 🔑 Conceitos Fundamentais
+
+> **Interfaces definem O QUE fazer (contratos), Implementações definem COMO fazer (execução)**
+
+**Domain**: Define regras de negócio e contratos (O QUE)
+**Infrastructure**: Implementa coordenação e orquestração (COMO coordenar)  
+**Data**: Executa comunicação externa real (COMO comunicar)
 
 ---
 
@@ -23,18 +32,20 @@ Este documento define **responsabilidades específicas** de cada camada na Clean
 #### 📋 Responsabilidades
 
 **✅ O que a camada Domain FAZ:**
-- Define **regras de negócio puras** sem dependências externas
-- Estabelece **contratos** através de interfaces
-- Representa **entidades de negócio** com suas validações
-- Define **failures específicos** do domínio
-- Especifica **casos de uso** que o sistema deve suportar
+- Define **regras de negócio puras** através de Entities
+- Estabelece **contratos de operações** através de Interfaces
+- Especifica **tipos de erro de negócio** através de Failures  
+- Define **valores constantes do domínio** através de Enums
+- Especifica **casos de uso que devem existir** através de IUseCases
+- Estabelece **contratos de acesso a dados** através de IRepositories
 
 **❌ O que a camada Domain NÃO FAZ:**
-- Não implementa acesso a dados externos
-- Não contém lógica de apresentação ou UI
-- Não depende de frameworks ou bibliotecas externas
-- Não implementa protocolos de comunicação
-- Não define tecnologias específicas
+- Não implementa comunicação externa (APIs, DB, cache)
+- Não contém lógica de apresentação, UI ou formatação
+- Não depende de frameworks, bibliotecas ou tecnologias específicas
+- Não implementa protocolos de comunicação (HTTP, gRPC, etc.)
+- Não define detalhes de persistência ou serialização
+- Não contém configurações de ambiente ou infraestrutura
 
 #### 🔍 Por que usar Interfaces no Domain?
 
@@ -65,17 +76,20 @@ class UserRepositoryImpl {
 #### 📋 Responsabilidades
 
 **✅ O que a camada Infrastructure FAZ:**
-- **Implementa contratos** definidos no Domain
-- **Coordena** comunicação entre camadas
-- **Aplica regras de negócio** usando repositories
-- **Transforma dados** entre formatos (Models)
-- **Orquestra** múltiplas operações quando necessário
+- **Implementa contratos do Domain** (IUseCases → UseCases, IRepositories → Repositories)
+- **Coordena múltiplas fontes de dados** (cache + API + fallback)
+- **Aplica regras de negócio complexas** orquestrando repositories
+- **Transforma dados externos** (Models ↔ Entities) 
+- **Define contratos de fontes externas** através de IDataSources
+- **Trata erros técnicos** transformando em erros de domínio
+- **Implementa estratégias** de cache, retry, circuit breaker
 
 **❌ O que a camada Infrastructure NÃO FAZ:**
-- Não faz comunicação direta com APIs/Banco de dados
+- Não executa comunicação externa direta (fica no Data)
 - Não contém regras de negócio puras (ficam no Domain)
-- Não define contratos (apenas implementa)
-- Não contém lógica de apresentação
+- Não define contratos de negócio (apenas implementa os existentes)
+- Não contém lógica de apresentação ou formatação de UI
+- Não implementa protocolos específicos (HTTP, SQL, etc.)
 
 #### 🔍 Por que Abstrações na Infrastructure?
 
@@ -125,17 +139,20 @@ class UserRepository extends IUserRepository {
 #### 📋 Responsabilidades
 
 **✅ O que a camada Data FAZ:**
-- **Implementa comunicação real** com APIs, bancos, cache
-- **Executa protocolos** HTTP, SQL, NoSQL
-- **Serializa/Deserializa** dados para formato de transporte
-- **Gerencia conexões** e autenticação
-- **Implementa retry** e circuit breaker quando necessário
+- **Implementa comunicação externa real** com APIs, databases, cache
+- **Executa protocolos específicos** (HTTP, GraphQL, SQL, NoSQL, gRPC)
+- **Serializa/Deserializa dados** para formato de transporte/storage
+- **Gerencia conexões** físicas, autenticação e autorização
+- **Implementa estratégias de rede** (retry, timeout, circuit breaker)
+- **Otimiza performance** (connection pooling, batch requests)
+- **Implementa contratos IDataSources** definidos na Infrastructure
 
 **❌ O que a camada Data NÃO FAZ:**
-- Não contém regras de negócio
-- Não define contratos (apenas implementa)
-- Não transforma dados em entities
-- Não coordena múltiplas operações
+- Não contém regras de negócio ou validações de domínio
+- Não define contratos ou interfaces (apenas implementa)
+- Não transforma dados em Entities (Model → Entity fica na Infra)
+- Não coordena múltiplas operações de negócio
+- Não contém lógica de cache ou fallback (coordenação fica na Infra)
 
 #### 🔍 Por que Abstrações no Data?
 
@@ -162,32 +179,51 @@ class UserDatasource extends IUserDatasource {
 
 ## 🔄 Fluxo de Dependências
 
-### 📊 Direção das Dependências
+### 📊 Direção das Dependências (SOLID DIP)
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                    PRESENTATION                             │
-│                        │                                    │
-│                        ▼                                    │
-│                 IUserUsecase ◄─────────────────────────────┐│
-└─────────────────────┬───────────────────────────────────────┘│
-                      │                                        │
-┌─────────────────────▼───────────────────────────────────────┐│
-│                INFRASTRUCTURE                               ││
-│                                                             ││
-│  UserUsecase ──────► IUserRepository ◄──────────────────────┤│
-│      │                   ▲                                 ││
-│      │                   │                                 ││
-│      ▼                   │                                 ││
-│  UserRepository ────► IUserDatasource ◄─────────────────────┤│
-└─────────────────────┬───────────────────────────────────────┘│
-                      │                                        │
-┌─────────────────────▼───────────────────────────────────────┐│
-│                     DATA                                   ││
-│                                                             ││
-│            UserDatasource ──────────────────────────────────┘│
+│                   (Controllers, Pages)                     │
+│                          │ calls                            │
+│                          ▼                                 │
 └─────────────────────────────────────────────────────────────┘
+                             │
+┌─────────────────────────────────────────────────────────────┐
+│                     DOMAIN                                 │
+│                   (Contracts)                              │
+│                                                             │
+│    IUserUsecase ◄─┐  ┌─► IUserRepository ◄─┐              │
+│                   │  │                     │              │
+└───────────────────┼──┼─────────────────────┼───────────────┘
+                    │  │                     │                
+┌───────────────────┼──┼─────────────────────┼───────────────┐
+│                   │  │  INFRASTRUCTURE     │               │
+│                   │  │   (Implementations) │               │
+│                   │  │                     │               │
+│    UserUsecase ───┘  │  UserRepository ────┘               │
+│         │             │         │                          │
+│         │             │         ▼                          │
+│         │             │  IUserDatasource ◄─┐               │
+└─────────┼─────────────┼─────────────────────┼───────────────┘
+          │             │                     │                
+┌─────────┼─────────────┼─────────────────────┼───────────────┐
+│         │             │       DATA          │               │
+│         │             │  (External I/O)     │               │
+│         │             │                     │               │
+│         └─────────────┼──► UserDatasource ──┘               │
+│                       │           │                        │
+│                       └───────────┼─► HTTP/API/DB          │
+└─────────────────────────────────────┼─────────────────────────┘
+                                      ▼
+                                External Systems
 ```
+
+**🔑 Pontos Chave:**
+- **Setas apontam para abstrações** (interfaces), nunca para implementações
+- **Infrastructure depende do Domain**, nunca o contrário
+- **Data implementa contratos** da Infrastructure, mas não os define
+- **Presentation usa abstrações** do Domain através da Infrastructure
 
 ### 🎯 Princípio da Inversão de Dependências
 
@@ -400,93 +436,160 @@ class UserDatasource extends IUserDatasource {
 
 ---
 
-## ✅ Checklist de Implementação Completa
+## ✅ Checklist de Implementação por Feature
 
-### 📋 Para cada Funcionalidade
+### 📋 Implementação Completa de uma Feature
 
-#### Domain Layer
-- [ ] **Entity** criada com regras de negócio
-- [ ] **Use Case Interface** definida
-- [ ] **Repository Interface** definida
-- [ ] **Failures** específicos criados
-- [ ] **Enums** necessários definidos
+#### 1. **Domain Layer** (Contratos e Regras)
+- [ ] **Entity** criada com validações e regras de negócio
+- [ ] **UseCase Interface** definida com contratos claros
+- [ ] **Repository Interface** definida para acesso aos dados
+- [ ] **Failures** específicos criados para erros de domínio
+- [ ] **Enums** necessários definidos para tipagem forte
 
-#### Infrastructure Layer
-- [ ] **Model** implementado (extends Entity + EquatableMixin)
-- [ ] **Use Case** implementado (validações + orquestração)
-- [ ] **Repository** implementado (coordenação + cache)
-- [ ] **DataSource Interface** definida
+#### 2. **Infrastructure Layer** (Coordenação)
+- [ ] **Model** implementado (extends Entity + serialização)
+- [ ] **UseCase Implementation** criada (orquestração + validações)
+- [ ] **Repository Implementation** criada (coordenação + cache)
+- [ ] **DataSource Interface** definida para comunicação externa
 
-#### Data Layer
-- [ ] **DataSource Remote** implementado (HTTP calls)
+#### 3. **Data Layer** (Comunicação Externa)
+- [ ] **DataSource Remote** implementado (APIs, HTTP calls)
 - [ ] **DataSource Local** implementado (se necessário)
-- [ ] **Error Handling** completo
-- [ ] **Timeouts** configurados
+- [ ] **Error Handling** completo com Either pattern
+- [ ] **Timeouts e Retry** configurados
 
-#### Presentation Layer
-- [ ] **Controller** implementado
+#### 4. **Presentation Layer** (UI)
+- [ ] **Controller/Cubit** implementado
 - [ ] **Page/Widget** criado
 - [ ] **Error Handling** na UI
-- [ ] **Loading States** implementados
+- [ ] **Loading/Success/Error States** implementados
 
 ---
 
-## 🚀 Benefícios desta Arquitetura
+## 🚀 Benefícios da Clean Architecture
 
-### ✅ Vantagens
+### ✅ Vantagens Técnicas
 
-1. **Testabilidade**: Cada camada pode ser testada isoladamente
-2. **Manutenibilidade**: Mudanças em uma camada não afetam outras
-3. **Escalabilidade**: Fácil adicionar novas funcionalidades
-4. **Flexibilidade**: Troca de implementações sem afetar regras de negócio
-5. **Reusabilidade**: Entities e Use Cases podem ser reutilizados
-6. **Separação de Responsabilidades**: Cada classe tem uma responsabilidade clara
+1. **Testabilidade Máxima**: Cada camada testada isoladamente com mocks
+2. **Manutenibilidade**: Mudanças localizadas, sem efeito dominó
+3. **Escalabilidade**: Novas features seguem padrão estabelecido
+4. **Flexibilidade**: Troca de tecnologias sem afetar regras de negócio
+5. **Reutilização**: Entities e UseCases reutilizáveis
+6. **SOLID Compliance**: Princípios rigorosamente aplicados
+
+### ✅ Vantagens de Negócio
+
+1. **Time-to-Market**: Desenvolvimento paralelo em teams
+2. **Qualidade**: Menos bugs com testes automatizados
+3. **Evolução**: Fácil adaptar a mudanças de requisitos
+4. **Múltiplas Plataformas**: Core compartilhado entre apps
+5. **Manutenção**: Custo reduzido de manutenção a longo prazo
 
 ### 🎯 Casos de Uso Ideais
 
-- **Aplicações complexas** com muitas regras de negócio
-- **Teams grandes** que precisam trabalhar em paralelo
-- **Projetos de longo prazo** que evoluem constantemente
+- **Aplicações complexas** com regras de negócio elaboradas
+- **Teams distribuídos** que trabalham em paralelo
+- **Projetos de longo prazo** com evolução constante
 - **Múltiplas plataformas** (mobile, web, desktop)
-- **Diferentes fontes de dados** (REST, GraphQL, local)
+- **Diferentes fontes de dados** (REST, GraphQL, cache, local)
+- **Ambientes variados** (dev, staging, production)
 
 ---
 
-## 🔗 Links de Referência
+## 🔗 Navegação da Documentação
 
-### Documentações Detalhadas
-- [📖 Entities](./domain/entites.md) - Regras de negócio fundamentais
-- [📖 Models](./infra/models.md) - Serialização e adaptação
-- [📖 Use Cases](./domain/usecases.md) - Orquestração e regras de aplicação
-- [📖 Repositories](./infra/repositories.md) - Coordenação de dados
-- [📖 DataSources](./data/datasources.md) - Comunicação com fontes externas
+### 📚 Documentações por Camada
 
-### Próximas Documentações
-- 🔜 **Failures & Error Handling** - Estratégias de tratamento de erros
-- 🔜 **Dependency Injection** - Configuração de DI com GetIt
-- 🔜 **Testing Strategies** - Testes por camada
-- 🔜 **Performance & Optimization** - Cache, lazy loading, etc.
+#### 🎯 Domain (Contratos e Regras)
+- **[📖 UseCase Interfaces](./domain/i_usecases.md)** - Contratos de operações de negócio
+- **[📖 Repository Interfaces](./domain/i_repositories.md)** - Contratos de acesso aos dados
+- **[📖 Entities](./domain/entities.md)** - Objetos de negócio com validações
+- **[📖 Enums](./domain/enums.md)** - Valores constantes e tipagem forte
+- **[📖 Failures](./domain/failures.md)** - Tipos de erro específicos
+
+#### 🔧 Infrastructure (Coordenação)
+- **[📖 UseCase Implementations](./infra/implementations/usecases.md)** - Implementação de orquestração
+- **[📖 Repository Implementations](./infra/implementations/repositories.md)** - Coordenação de dados
+- **[📖 DataSource Interfaces](./infra/i_datasources.md)** - Contratos de comunicação
+- **[📖 Models](./infra/models.md)** - Adaptadores de dados
+
+#### 💾 Data (Comunicação Externa)
+- **[📖 DataSource Implementations](./data/datasources.md)** - Comunicação real com APIs/DB
+
+#### 🎨 Presentation (Interface e Estado)
+- **[📖 Controllers](./presentation/controllers.md)** - Gerenciamento de estado reativo
+
+### 🎨 Documentações Auxiliares
+- **[📖 Naming Conventions](./conventions/naming.md)** - Padrões de nomenclatura
+- **[📖 Code Style Guide](./conventions/code-style.md)** - Estilo de código
+- **[📖 Error Handling](./conventions/error-handling.md)** - Tratamento de erros
+- **[📖 Testing Strategy](./testing/unit-tests.md)** - Estratégias de teste
+## � Guia de Implementação Prática
+
+### 🚀 Começando uma Nova Feature
+
+1. **📋 Defina no Domain**
+   - Crie a Entity com regras de negócio
+   - Defina IUseCase com operações necessárias
+   - Crie IRepository para acesso aos dados
+   - Defina Failures específicos
+
+2. **🔧 Implemente na Infrastructure**
+   - Crie Model (extends Entity + serialização)
+   - Implemente UseCase (orquestração + validações)
+   - Implemente Repository (coordenação)
+   - Defina IDataSource para comunicação
+
+3. **💾 Execute na Data**
+   - Implemente DataSource (comunicação real)
+   - Configure tratamento de erros
+   - Implemente timeouts e retry
+
+4. **🎨 Conecte na Presentation**
+   - Use IUseCase nas controllers
+   - Implemente estados na UI
+   - Trate erros adequadamente
+
+### 🔧 Refatorando Código Existente
+
+1. **📊 Analise dependências** atuais
+2. **🎯 Extraia Entities** do código existente
+3. **🔍 Identifique regras de negócio** e isole em UseCases
+4. **📡 Separe comunicação externa** em DataSources
+5. **🧪 Adicione testes** para cada camada
+6. **🔄 Migre gradualmente** mantendo funcionalidade
 
 ---
 
-## 💡 Dicas de Implementação
+## 🎯 Resumo dos Benefícios por Princípio SOLID
 
-### 🚀 Começando um Novo Projeto
+### ✅ **Single Responsibility Principle (SRP)**
+- **Entity**: Apenas dados e validações de negócio
+- **UseCase**: Apenas uma operação de negócio específica
+- **Repository**: Apenas coordenação de acesso aos dados
+- **DataSource**: Apenas comunicação com uma fonte externa
 
-1. **Defina as Entities** primeiro (regras de negócio)
-2. **Crie os Use Cases** (fluxos da aplicação)
-3. **Implemente os Models** (serialização)
-4. **Configure DataSources** (APIs/Database)
-5. **Conecte com Repositories** (coordenação)
-6. **Finalize com Presentation** (UI)
+### ✅ **Open/Closed Principle (OCP)**
+- **Interfaces estáveis**: Novos recursos via implementações
+- **Extensibilidade**: Novas implementações sem modificar existentes
+- **Evolução segura**: Mudanças não quebram código existente
 
-### 🔧 Refatorando Projeto Existente
+### ✅ **Liskov Substitution Principle (LSP)**
+- **Implementações intercambiáveis**: Qualquer implementação funciona
+- **Contratos respeitados**: Interfaces garantem comportamento
+- **Testes consistentes**: Mocks e implementações reais equivalentes
 
-1. **Extraia Entities** das classes existentes
-2. **Isole regras de negócio** em Use Cases
-3. **Separe serialização** em Models
-4. **Abstraia fontes de dados** em DataSources
-5. **Teste cada camada** isoladamente
-6. **Migre gradualmente** a UI
+### ✅ **Interface Segregation Principle (ISP)**
+- **Interfaces coesas**: Apenas métodos relacionados
+- **Dependências mínimas**: Clients dependem só do necessário
+- **Evolução independente**: Interfaces mudam independentemente
 
-Esta arquitetura garante código limpo, testável e escalável para projetos Flutter de qualquer tamanho!
+### ✅ **Dependency Inversion Principle (DIP)**
+- **Abstrações estáveis**: Dependência de interfaces, não implementações
+- **Inversão completa**: Camadas altas não conhecem baixas
+- **Flexibilidade máxima**: Fácil trocar implementações
+
+---
+
+*Esta documentação serve como **guia definitivo** para entender e implementar Clean Architecture com princípios SOLID, garantindo código **maintível**, **testável** e **escalável** em projetos Dart/Flutter.*

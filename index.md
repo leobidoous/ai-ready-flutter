@@ -6,7 +6,46 @@
 A Clean Architecture está organizada em **3 camadas principais** com responsabilidades bem definidas:
 
 ```
-┌───────────────────────────────────────────## 📊 Status da Documentação
+┌─────────────────────────────────────────────────────────────┐
+│                  PRESENTATION LAYER                         │
+│              🎨 Interface & Estado da UI                    │
+│                                                             │
+│  • Controllers (State Management)                           │
+│  • Pages & Widgets                                          │
+│  • ValueNotifier + Either Pattern                            │
+└─────────────────────┬───────────────────────────────────────┘
+                      │ calls
+┌─────────────────────▼───────────────────────────────────────┐
+│                    DOMAIN LAYER                             │
+│         📋 Interfaces & Regras de Negócio                   │
+│                                                             │
+│  • UseCases (Interfaces)     • Entities                     │
+│  • Repositories (Interfaces) • Failures                     │
+│  • Enums                     • Value Objects                │
+└─────────────────────┬───────────────────────────────────────┘
+                      │ implements
+┌─────────────────────▼───────────────────────────────────────┐
+│                INFRASTRUCTURE LAYER                         │
+│            🔧 Implementações & Coordenação                  │
+│                                                             │
+│  • UseCases (Implementações)                                │
+│  • Repositories (Implementações)                            │
+│  • DataSources (Interfaces)                                 │
+│  • Models                                                   │
+└─────────────────────┬───────────────────────────────────────┘
+                      │ calls
+┌─────────────────────▼───────────────────────────────────────┐
+│                     DATA LAYER                              │
+│             💾 Comunicação Externa Real                     │
+│                                                             │
+│  • DataSources (Implementações)                             │
+│  • External APIs                                            │
+│  • Database Access                                          │
+│  • Local Storage                                            │
+└─────────────────────────────────────────────────────────────┘
+```
+
+## � Status da Documentação
 
 | Componente | Status | Foco Atual |
 |------------|--------|------------|
@@ -14,12 +53,21 @@ A Clean Architecture está organizada em **3 camadas principais** com responsabi
 | └─ UseCase Interfaces | ✅ | Contratos de regras de negócio |
 | └─ Repository Interfaces | ✅ | Contratos de acesso aos dados |
 | └─ Entities | ✅ | Objetos de negócio com validações |
-| **🔧 Infra - Implementações** | ⚡ | **COMO** fazer (coordenação) |
+| └─ Enums | ✅ | Valores constantes e tipagem forte |
+| └─ Failures | ✅ | Tipos de erro específicos do domínio |
+| **🔧 Infra - Implementações** | ✅ | **COMO** fazer (coordenação) |
 | └─ DataSource Interfaces | ✅ | Contratos de fontes externas |
 | └─ Models | ✅ | Adaptadores de dados |
-| └─ UseCase Implementations | 🔄 | Próximo: implementações de negócio |
-| └─ Repository Implementations | 🔄 | Próximo: coordenação de dados |
-| **💾 Data - Comunicação** | 🔄 | Comunicação externa real |
+| └─ UseCase Implementations | ✅ | Implementações de negócio |
+| └─ Repository Implementations | ✅ | Coordenação de dados |
+| **💾 Data - Comunicação** | ✅ | Comunicação externa real |
+| └─ DataSource Implementations | ✅ | Comunicação real com APIs/BD |
+| **🎨 Presentation - Interface** | ✅ | Estado da UI e coordenação |
+| └─ Controllers | ✅ Completo | Alta | **ValueNotifier + Either pattern** |
+| └─ Pages | ✅ Completo | Alta | **Composição de interface e navegação** |
+| └─ Routes | ✅ Completo | Alta | **Navegação tipificada e modular** |
+| └─ Modules | ✅ Completo | Alta | **DI e configuração de rotas** |
+| └─ Widgets | ✅ Completo | Alta | **Componentização e reutilização** |
 
 ### 🎯 Principais Melhorias Aplicadas:
 - ✅ **Clareza nos Contratos**: Interfaces definem claramente O QUE fazer
@@ -27,47 +75,7 @@ A Clean Architecture está organizada em **3 camadas principais** com responsabi
 - ✅ **Tipagem Forte**: Either pattern obrigatório para todas as operações
 - ✅ **Zero Dependências**: Interfaces dependem apenas de abstrações
 - ✅ **Documentação Rica**: Contratos bem documentados com exemplos reais
-
----────┐
-│                    PRESENTATION LAYER                       │
-│                  (Pages, Controllers, UI)                   │
-└─────────────────────┬───────────────────────────────────────┘
-                      │
-┌─────────────────────▼───────────────────────────────────────┐
-│                    DOMAIN LAYER                            │
-│         📋 Interfaces & Regras de Negócio                   │
-│                                                             │
-│  • UseCases (Interfaces)     • Entities                    │
-│  • Repositories (Interfaces) • Failures                    │
-│  • Enums                     • Value Objects               │
-└─────────────────────┬───────────────────────────────────────┘
-                      │
-┌─────────────────────▼───────────────────────────────────────┐
-│                INFRASTRUCTURE LAYER                        │
-│            🔧 Implementações & Coordenação                  │
-│                                                             │
-│  • UseCases (Implementações)                               │
-│  • Repositories (Implementações)                           │
-│  • DataSources (Interfaces)                                │
-│  • Models                                                  │
-└─────────────────────┬───────────────────────────────────────┘
-                      │
-┌─────────────────────▼───────────────────────────────────────┐
-│                     DATA LAYER                             │
-│             💾 Comunicação Externa                          │
-│                                                             │
-│  • DataSources (Implementações)                            │
-│  • External APIs                                           │
-│  • Database Access                                         │
-│  • Local Storage                                           │
-└─────────────────────────────────────────────────────────────┘
-```
-
----
-
-## 📚 Documentação Clean Architecture
-
-Esta documentação fornece guias práticos e templates para implementar Clean Architecture em projetos Dart/Flutter, com foco em padrões de código, responsabilidades por camadas e melhores práticas.
+- ✅ **Implementações Completas**: Todas as camadas documentadas com padrões
 
 ---
 
@@ -169,10 +177,17 @@ abstract class IUserRepository {
 - **Características**: `const` constructors, imutabilidade, validações com `assert`
 - **Exemplo**: `UserEntity`, `ProductEntity`
 
-#### [📖 Failures (Tipos de Erro)](./domain/failures.md) 🔄
+#### [📖 Enums (Valores Constantes)](./domain/enums.md) ✅
+- **O que é**: Valores constantes e bem definidos do domínio
+- **Responsabilidade**: Tipagem forte para estados, tipos e categorias
+- **Características**: Serialização consistente, nomes legíveis, validação automática
+- **Exemplo**: `UserGenderType`, `AuthProviderType`, `OrderStatusType`
+
+#### [📖 Failures (Tipos de Erro)](./domain/failures.md) ✅
 - **O que é**: Definições de erros específicos do domínio
 - **Responsabilidade**: Tipificar falhas de negócio para Either pattern
-- **Exemplo**: `IUserFailure`, `UserNotFoundError`
+- **Princípios**: Herança de ICustomFailure, mensagens descritivas, granularidade
+- **Exemplo**: `IUserFailure`, `UserNotFoundError`, `UserServerError`
 
 ---
 
@@ -186,22 +201,31 @@ abstract class IUserRepository {
 - **Princípios**: Either pattern, tipagem forte, protocolos bem definidos
 - **Exemplo**: `IUserDatasource`, `IProductDatasource`
 
-#### [📖 Models (Adaptadores de Dados)](./infra/models.md) ✅
+#### [📖 UseCase Implementations (Coordenação de Negócio)](./infra/implementations/usecases.md) ✅
 - **O que é**: Implementação real dos casos de uso
 - **Responsabilidade**: Aplicar regras de negócio e coordenar repositories
+- **Princípios**: Orquestração, validações, tratamento de erros
 - **Exemplo**: `UserUsecase extends IUserUsecase`
 
-#### [📖 Repositories (Implementações)](./infra/repositories.md)
+#### [📖 Repository Implementations (Coordenação de Dados)](./infra/implementations/repositories.md) ✅
 - **O que é**: Implementação real dos repositórios
 - **Responsabilidade**: Coordenar datasources, cache, fallback
+- **Princípios**: Transformação Model↔Entity, tratamento de erros técnicos
 - **Exemplo**: `UserRepository extends IUserRepository`
 
-#### [📖 DataSources (Interfaces)](./infra/i_datasources.md)
-- **O que é**: Contratos para comunicação com dados externos
-- **Responsabilidade**: Definir protocolos de acesso a dados
-- **Exemplo**: `IUserDatasource`, `IProductDatasource`
+---
 
-#### [📖 Models](./infra/models.md)
+### 💾 3. Data Layer (Comunicação Externa Real)
+
+> **Responsabilidade**: Executar **COMO** comunicar realmente com fontes externas (APIs, DB, cache)
+
+#### [📖 DataSource Implementations (Comunicação Real)](./data/datasources.md) ✅
+- **O que é**: Implementação real de comunicação com fontes externas
+- **Responsabilidade**: Executar protocolos HTTP, DB, cache, serialização
+- **Princípios**: I/O real, performance, protocolo específico
+- **Exemplo**: `UserDatasource extends IUserDatasource`
+
+#### [📖 Models (Adaptadores de Dados)](./infra/models.md) ✅
 - **O que é**: Adaptadores entre entities e dados externos
 - **Responsabilidade**: Serialização/deserialização com tratamento robusto de dados
 - **Características**: `const` constructors, EquatableMixin, tratamento de nulos
@@ -209,14 +233,39 @@ abstract class IUserRepository {
 
 ---
 
-### 💾 3. Data Layer (Comunicação Externa)
+### 🎨 4. Presentation Layer (Interface e Estado)
 
-> **Responsabilidade**: Implementar comunicação real com APIs, databases e armazenamento
+> **Responsabilidade**: Gerenciar **estado da UI** e **coordenar** operações de negócio com a camada Domain
 
-#### [📖 DataSources (Implementações)](./data/datasources.md)
-- **O que é**: Implementação real da comunicação externa
-- **Responsabilidade**: HTTP requests, database queries, file I/O
-- **Exemplo**: `UserDatasource extends IUserDatasource`
+#### [📖 Controllers (Gerenciamento de Estado)](./presentation/controllers.md) ✅
+- **O que é**: Gerenciadores de estado baseados em ValueNotifier com Either pattern
+- **Responsabilidade**: State management reativo, coordenação de UseCases, estados auxiliares
+- **Características**: ValueNotifier integration, auto loading/error, callback injection
+- **Exemplo**: `AppController`, `SessionController`, `LoginController`
+
+#### [📖 Pages (Composição de Interface)](./presentation/pages.md) ✅
+- **O que é**: Páginas que compõem interface e orquestram Controllers
+- **Responsabilidade**: Composição da UI, navegação, tratamento de estados da interface
+- **Características**: CustomListenableBuilder, args tipificados, lifecycle management
+- **Exemplo**: `EnrollmentsPage`, `CreateEnrollmentPage`, `EnrollmentDetailsPage`
+
+#### [📖 Routes (Navegação e Hierarquia)](./presentation/routes.md) ✅
+- **O que é**: Definição de navegação e hierarquia de rotas da aplicação
+- **Responsabilidade**: Estruturar navegação, organizar módulos, integrar pacotes
+- **Características**: Rotas internas simples, rotas de pacotes configuráveis, singleton pattern
+- **Exemplo**: `HomeRoutes`, `FunnelRoutes`, `CandidatesRoutes`
+
+#### [📖 Widgets (Componentização e Reutilização)](./presentation/widgets.md) ✅
+- **O que é**: Componentes reutilizáveis e específicos para organização da interface
+- **Responsabilidade**: Componentizar UI, promover reutilização, controlar complexity das pages
+- **Características**: Widgets globais vs específicos, part/part of, widgets privados, máximo 300 linhas por page
+- **Exemplo**: `CustomButton`, `AddressFormWidget`, `_UserListItem`
+
+#### [📖 Modules (Injeção de Dependências)](./presentation/modules.md) ✅
+- **O que é**: Configuração de DI container e roteamento usando Flutter Modular
+- **Responsabilidade**: Injetar dependências, definir rotas, importar módulos, exportar services
+- **Características**: Binds organizados, routes estruturadas, imports auxiliares, exportedBinds
+- **Exemplo**: `MainModule`, `FunnelModule`, `AuthModule`
 
 ---
 
@@ -245,6 +294,7 @@ Data DataSource ──communicates──> External APIs/DB
 | **Domain** | Define contratos e regras | Não implementa nem conhece infraestrutura |
 | **Infrastructure** | Implementa contratos, coordena fluxo | Não faz comunicação externa direta |
 | **Data** | Comunicação externa real | Não contém regras de negócio |
+| **Presentation** | Gerencia estado UI, coordena UseCases | Não contém regras de negócio nem comunicação direta |
 
 ---
 
@@ -255,12 +305,14 @@ Data DataSource ──communicates──> External APIs/DB
 1. **[Comece pelo Domain](./domain/)** - Defina entities, failures e interfaces
 2. **[Implemente na Infrastructure](./infra/)** - Crie as implementações e coordenação  
 3. **[Finalize no Data](./data/)** - Implemente a comunicação externa
+4. **[Crie a Presentation](./presentation/)** - Implemente controllers e pages para a UI
 
 ### 🔍 Para debuggar problemas:
 
 1. **Domain**: Valide regras de negócio e contratos
 2. **Infrastructure**: Verifique coordenação entre camadas
 3. **Data**: Analise comunicação externa e parsing
+4. **Presentation**: Verifique estado da UI e binding com controllers
 
 ---
 
@@ -287,38 +339,54 @@ Data DataSource ──communicates──> External APIs/DB
 
 | Documento | Status | Prioridade | Observações |
 |-----------|--------|------------|-------------|
-| Domain/UseCases | ✅ Completo | Alta | |
-| Domain/Repositories | ✅ Completo | Alta | |
-| Domain/Entities | ✅ **Atualizado** | Alta | **Aplicação de boas práticas** |
-| Domain/Failures | 🔜 Pendente | Alta | |
-| Infra/UseCases | ✅ Completo | Alta | |
-| Infra/Repositories | ✅ Completo | Alta |  |
-| Infra/DataSources | ✅ Completo | Alta | |
-| Infra/Models | ✅ **Atualizado** | Média | **Aplicação de boas práticas** |
-| Data/DataSources | 🔧 Revisando | Alta | |
+| **Domain - Abstrações** | | | |
+| └─ UseCases Interfaces | ✅ Completo | Alta | Contratos bem definidos |
+| └─ Repository Interfaces | ✅ Completo | Alta | Contratos bem definidos |
+| └─ Entities | ✅ Completo | Alta | Objetos de negócio puros |
+| └─ Enums | ✅ Completo | Alta | **Recém criado com exemplos reais** |
+| └─ Failures | ✅ Completo | Alta | Tipos de erro específicos |
+| **Infrastructure - Implementações** | | | |
+| └─ UseCase Implementations | ✅ Completo | Alta | Orquestração de negócio |
+| └─ Repository Implementations | ✅ Completo | Alta | Coordenação de dados |
+| └─ DataSource Interfaces | ✅ Completo | Alta | Contratos de comunicação |
+| └─ Models | ✅ Completo | Média | Adaptadores de dados |
+| **Data - Comunicação** | | | |
+| └─ DataSource Implementations | ✅ Completo | Alta | Comunicação externa real |
+| **Presentation - Interface** | | | |
+| └─ Controllers | ✅ Completo | Alta | **ValueNotifier + Either pattern** |
+| └─ Pages | ✅ Completo | Alta | **Composição de interface e navegação** |
+| └─ Routes | ✅ Completo | Alta | **Navegação tipificada e modular** |
+| └─ Modules | ✅ Completo | Alta | **DI e configuração de rotas** |
+| └─ Widgets | ✅ Completo | Alta | **Componentização e reutilização** |
 
 ---
 
 ## 🔄 Atualizações Recentes
 
-### ✅ Entities e Models - Setembro 2025
-- **Documentações atualizadas** com aplicação correta dos conceitos de Clean Architecture
-- **Implementação de boas práticas** para cada camada:
-  - **Domain Entities**: `const` constructors, validações com `assert`, regras de negócio
-  - **Infrastructure Models**: Tratamento robusto de dados externos, serialização segura
-- **Templates modernizados** com padrões atuais do Dart/Flutter
-- **Exemplos práticos** demonstrando implementação real dos conceitos
+### ✅ Suite Completa de Documentação - Setembro 2025
+- **Documentação Clean Architecture Completa** criada do zero
+- **Todas as 4 camadas documentadas** com exemplos reais e práticos:
+  - **Domain Layer**: Interfaces, Entities, Enums, Failures com princípios SOLID
+  - **Infrastructure Layer**: Implementações de UseCases, Repositories, DataSources
+  - **Data Layer**: Comunicação externa real com APIs e databases
+  - **Presentation Layer**: Controllers, Pages, Routes, Modules e Widgets com ValueNotifier + Either pattern
+- **Templates e Checklists** para cada tipo de componente
+- **Padrões SOLID rigorosamente aplicados** em todos os exemplos
+- **Either pattern obrigatório** para tratamento de erros
+- **Exemplos reais** baseados em UserEntity, AuthProviderType, AppController, etc.
+- **Widgets componentizados** com estratégias de reutilização e organização
 
 ---
 
 ## 🆘 Precisa de Ajuda?
 
-1. **📖 Leia a documentação** da camada correspondente
-2. **🔍 Veja exemplos** nos templates de Entities e Models 
-3. **❓ Dúvidas sobre responsabilidades?** Consulte a hierarquia acima
-4. **🐛 Problemas na implementação?** Verifique o fluxo de comunicação
-5. **🎯 Precisa implementar algo novo?** Use os templates atualizados
+1. **📖 Leia a documentação** da camada correspondente primeiro
+2. **🏗️ Consulte o [Guia de Arquitetura](./architecture-overview.md)** para entender responsabilidades
+3. **🔍 Veja exemplos** nos templates de cada componente
+4. **❓ Dúvidas sobre responsabilidades?** Consulte o fluxo de dependências acima
+5. **🐛 Problemas na implementação?** Verifique princípios SOLID nos contratos
+6. **🎯 Precisa implementar algo novo?** Use os templates e checklists atualizados
 
 ---
 
-*Este índice é o ponto de partida para entender a Clean Architecture. As documentações de **Entities** e **Models** foram recentemente atualizadas com as melhores práticas e conceitos modernos. Sempre consulte este documento antes de navegar para documentações específicas.*
+*Este índice é o ponto de partida para entender a Clean Architecture. Toda a documentação foi criada com exemplos reais e princípios SOLID rigorosamente aplicados. Consulte sempre o [architecture-overview.md](./architecture-overview.md) para entender as responsabilidades específicas de cada camada.*
