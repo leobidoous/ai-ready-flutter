@@ -137,7 +137,7 @@ class MainModule extends Module {
   @override
   void routes(RouteManager r) {
     r.child(
-      MainRoutes.start.path,
+      MainRoutes.root.path,
       child: (_) => const MainPage(),
       children: [
         // Módulos internos
@@ -148,11 +148,11 @@ class MainModule extends Module {
         
         // Módulos de pacotes com configuração
         ModuleRoute(
-          FunnelRoutes.i(parentRoot: MainRoutes.start.completePath).rootPath,
+          FunnelRoutes.i(parentRoot: MainRoutes.root.completePath).rootPath,
           module: FunnelModule(
             system: SystemType.dc,
             goToEnrollmentDetails: (idOrigin) {
-              Nav.to.popUntilAndPushNamed(MainRoutes.start, CandidatesRoutes.root);
+              Nav.to.popUntilAndPushNamed(MainRoutes.root, CandidatesRoutes.root);
               if (idOrigin.isEmpty) return;
               Nav.to.pushNamed(
                 CandidatesRoutes.enrollmentDetails,
@@ -162,7 +162,7 @@ class MainModule extends Module {
           ),
         ),
         ModuleRoute(
-          CandidatesRoutes.i(parentRoot: MainRoutes.start.completePath).rootPath,
+          CandidatesRoutes.i(parentRoot: MainRoutes.root.completePath).rootPath,
           module: CandidatesModule(),
         ),
       ],

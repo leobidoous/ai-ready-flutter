@@ -23,6 +23,38 @@ lib/
             └── order_model.dart
 ```
 
+### 📋 Regras de Nomenclatura
+
+**Classes:**
+- ✅ **Sufixo obrigatório**: Sempre terminar com `Model` (singular)
+- ✅ **PascalCase**: `UserModel`, `ProductModel`, `PaymentPlanModel`
+- ❌ **Plurais**: Nunca usar `Models` (plural)
+
+**Arquivos:**
+- ✅ **snake_case**: Converter o nome da classe para snake_case
+- ✅ **Nome da classe principal**: O arquivo deve ter o nome da classe principal
+- ✅ **Exemplos corretos**: 
+  - `UserModel` → `user_model.dart`
+  - `PaymentPlanModel` → `payment_plan_model.dart`
+  - `SimulationFiltersResponseModel` → `simulation_filters_response_model.dart`
+- ❌ **Exemplos incorretos**:
+  - `user_models.dart` (plural)
+  - `payment_models.dart` (genérico)
+  - `userModel.dart` (camelCase)
+
+**Organização com part/part of:**
+- ✅ **Quando usar**: Para models complexos com muitas classes relacionadas
+- ✅ **Arquivo principal**: Contém o model principal e os `part` imports
+- ✅ **Arquivos part**: Cada model complementar em arquivo separado com `part of`
+- ✅ **Estrutura exemplo**:
+  ```
+  simulation_filters_response_model.dart  // Principal
+  ├── eligible_scholarship_model.dart     // part of
+  ├── awarded_scholarship_model.dart      // part of
+  ├── simulation_success_model.dart       // part of
+  └── payment_plan_model.dart            // part of
+  ```
+
 ---
 
 ## 🏗️ Estrutura Base de um Model

@@ -154,7 +154,7 @@ class _EnrollmentsPageState extends State<EnrollmentsPage> {
       firstPageKey: 1,
     );
     
-    _listController.setListener(({required pageKey}) async {
+    _listController.setListener(({required int pageKey, int? pageSize}) async {
       _controller.filters = _controller.filters.copyWith(
         pagination: _controller.filters.pagination.copyWith(pageNumber: pageKey),
       );

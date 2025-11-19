@@ -83,7 +83,7 @@ import 'main_routes.dart';
 /// referenciando diretamente as rotas principais.
 class HomeRoutes {
   // Rota base do módulo home
-  static BasePath root = BasePath('/home/', MainRoutes.start);
+  static BasePath root = BasePath('/home/', MainRoutes.root);
   
   // Sub-rotas do módulo (exemplos)
   static BasePath dashboard = BasePath('/dashboard/', root);
@@ -94,7 +94,7 @@ class HomeRoutes {
 
 **Características:**
 - **Estrutura simples**: Apenas campos `static BasePath`
-- **Dependência direta**: Referencia `MainRoutes.start` diretamente
+- **Dependência direta**: Referencia `MainRoutes.root` diretamente
 - **Zero configuração**: Pronto para uso imediato
 - **Hierarquia clara**: `/main/start/home/dashboard/`
 
@@ -162,7 +162,7 @@ import 'main_routes.dart';
 
 /// Rotas do módulo de autenticação
 class AuthRoutes {
-  static BasePath root = BasePath('/auth/', MainRoutes.start);
+  static BasePath root = BasePath('/auth/', MainRoutes.root);
   static BasePath login = BasePath('/login/', root);
   static BasePath register = BasePath('/register/', root);
   static BasePath forgotPassword = BasePath('/forgot_password/', root);
@@ -180,7 +180,7 @@ import 'main_routes.dart';
 /// Rotas do módulo de e-commerce
 class EcommerceRoutes {
   // Raiz do módulo
-  static BasePath root = BasePath('/ecommerce/', MainRoutes.start);
+  static BasePath root = BasePath('/ecommerce/', MainRoutes.root);
   
   // Produtos
   static BasePath products = BasePath('/products/', root);
@@ -346,7 +346,7 @@ import 'main_routes.dart'; // ou parent route apropriado
 /// integrado à aplicação principal.
 class [ModuleName]Routes {
   // Rota base do módulo
-  static BasePath root = BasePath('/[module_path]/', MainRoutes.start);
+  static BasePath root = BasePath('/[module_path]/', MainRoutes.root);
   
   // Sub-rotas principais
   static BasePath [subRoute1] = BasePath('/[sub_path_1]/', root);

@@ -1,463 +1,452 @@
-# Domain Entities - Clean Architecture
+# 📦 Domain Layer - Entities
 
-## 📋 Visão Geral
+## 🎯 O que são Entities?
 
-As **Entities** representam as regras de negócio mais fundamentais e estáveis da aplicação. Elas contêm a lógica que é menos propensa a mudanças quando algo externo muda.
+**Entities** são objetos de negócio puros que representam conceitos fundamentais do domínio. Elas carregam dados e regras de negócio básicas, sem dependências externas.
 
-### 🎯 Propósito
+### Responsabilidades
+- ✅ Representar objetos de negócio do domínio
+- ✅ Carregar dados estruturados e tipados
+- ✅ Garantir imutabilidade através de `final` fields
+- ✅ Fornecer método `copyWith` para atualizações imutáveis
+- ✅ Validações básicas com `assert` (quando necessário)
 
-- **Regras de Negócio Centrais**: Encapsulam as regras mais importantes e estáveis
-- **Independência**: Não dependem de frameworks, UI, banco de dados ou agentes externos
-- **Reutilização**: Podem ser usadas por qualquer camada da aplicação
-- **Teste**: Fáceis de testar isoladamente
-
-### 📍 Localização na Arquitetura
-
-```
-lib/
-└── src/
-    └── domain/
-        └── entities/
-            ├── user_entity.dart
-            ├── product_entity.dart
-            └── order_entity.dart
-```
+### Não Responsabilidades
+- ❌ Lógica de persistência (isso é do Repository)
+- ❌ Serialização JSON (isso é do Model na camada Infra)
+- ❌ Comunicação com APIs (isso é do DataSource)
+- ❌ Regras de negócio complexas (isso é do UseCase)
 
 ---
 
-## 🏗️ Estrutura Base de uma Entity
+## 📋 Padrão de Nomenclatura
 
-### Regras Fundamentais
+### Convenção de Nomes
+```
+[NomeDoConceito]Entity
+```
 
-1. **Imutabilidade**: Entities devem ser imutáveis por padrão
-2. **Construtor const**: Use `const` no construtor quando possível para performance
-3. **Parâmetros Nomeados**: Sempre usar `required` e parâmetros nomeados
-4. **Validação**: Validações básicas com `assert` no construtor quando necessário
-5. **copyWith**: Método para criar cópias com alterações
-6. **Regras de Negócio**: Métodos que encapsulem lógica de domínio
-7. **Igualdade**: Implementar `==`, `hashCode` e `toString` quando necessário
-8. **Sem Dependências**: Não importar nada além de outras entities do domain
+### Exemplos
+- `UserEntity` → arquivo: `user_entity.dart`
+- `ProductEntity` → arquivo: `product_entity.dart`
+- `AddressEntity` → arquivo: `address_entity.dart`
+- `DistributorEntity` → arquivo: `distributor_entity.dart`
+- `BankDataEntity` → arquivo: `bank_data_entity.dart`
+
+---
+
+## 🏗️ Estrutura Padrão de uma Entity
 
 ### Template Base
-
 ```dart
 class [Nome]Entity {
   const [Nome]Entity({
-    required this.propriedade1,
-    required this.propriedade2,
-    // Propriedades opcionais por último
-    this.propriedadeOpcional,
+    required this.campo1,
+    required this.campo2,
+    // ... outros campos
   });
 
-  // Propriedades finais (imutabilidade)
-  final TipoPrimario propriedade1;
-  final TipoComplexo propriedade2;
-  final TipoOpcional? propriedadeOpcional;
+  final TipoCampo1 campo1;
+  final TipoCampo2 campo2;
+  // ... outros campos
 
-  // Método copyWith para imutabilidade
   [Nome]Entity copyWith({
-    TipoPrimario? propriedade1,
-    TipoComplexo? propriedade2,
-    TipoOpcional? propriedadeOpcional,
+    TipoCampo1? campo1,
+    TipoCampo2? campo2,
+    // ... outros campos
   }) {
     return [Nome]Entity(
-      propriedade1: propriedade1 ?? this.propriedade1,
-      propriedade2: propriedade2 ?? this.propriedade2,
-      propriedadeOpcional: propriedadeOpcional ?? this.propriedadeOpcional,
+      campo1: campo1 ?? this.campo1,
+      campo2: campo2 ?? this.campo2,
+      // ... outros campos
     );
   }
-
-  // Métodos de negócio (regras de domínio)
-  bool metodoDeNegocio() {
-    // Lógica de negócio pura
-    return true;
-  }
-
-  // Implementação de igualdade e hashCode quando necessário
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is [Nome]Entity &&
-      runtimeType == other.runtimeType &&
-      propriedade1 == other.propriedade1 &&
-      propriedade2 == other.propriedade2 &&
-      propriedadeOpcional == other.propriedadeOpcional;
-
-  @override
-  int get hashCode =>
-      propriedade1.hashCode ^
-      propriedade2.hashCode ^
-      propriedadeOpcional.hashCode;
-
-  @override
-  String toString() => '[Nome]Entity(propriedade1: $propriedade1, propriedade2: $propriedade2)';
 }
 ```
 
 ---
 
-## 📚 Exemplo Prático: UserEntity
+## 📝 Como Criar Entities a partir de JSON
 
-### Implementação Completa
+### Passo 1: Analisar o JSON
+Dado um JSON de resposta da API:
 
+```json
+{
+  "id": "123",
+  "name": "João Silva",
+  "email": "joao@example.com",
+  "phoneNumber": "+5511999999999",
+  "createdAt": "2025-01-15T10:30:00Z"
+}
+```
+
+### Passo 2: Identificar os Campos e Tipos
+| Campo JSON | Tipo Dart | Campo Entity |
+|------------|-----------|--------------|
+| `id` | `String` | `id` |
+| `name` | `String` | `name` |
+| `email` | `String` | `email` |
+| `phoneNumber` | `String` | `phoneNumber` |
+| `createdAt` | `DateTime` | `createdAt` |
+
+### Passo 3: Criar a Entity
 ```dart
-import '../../../cogna_resale_core.dart' show AccountPersonType;
-import '../enums/user_gender_type.dart';
+class UserEntity {
+  const UserEntity({
+    required this.id,
+    required this.name,
+    required this.email,
+    required this.phoneNumber,
+    required this.createdAt,
+  });
+
+  final String id;
+  final String name;
+  final String email;
+  final String phoneNumber;
+  final DateTime createdAt;
+
+  UserEntity copyWith({
+    String? id,
+    String? name,
+    String? email,
+    String? phoneNumber,
+    DateTime? createdAt,
+  }) {
+    return UserEntity(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      email: email ?? this.email,
+      phoneNumber: phoneNumber ?? this.phoneNumber,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+}
+```
+
+---
+
+## 🔗 Entities Compostas (Nested Objects)
+
+### JSON com Objetos Aninhados
+```json
+{
+  "id": "123",
+  "name": "João Silva",
+  "address": {
+    "street": "Rua A",
+    "city": "São Paulo",
+    "state": "SP",
+    "zipCode": "01234-567"
+  }
+}
+```
+
+### Criar Entity Separada para Objeto Aninhado
+```dart
+// address_entity.dart
+class AddressEntity {
+  const AddressEntity({
+    required this.street,
+    required this.city,
+    required this.state,
+    required this.zipCode,
+  });
+
+  final String street;
+  final String city;
+  final String state;
+  final String zipCode;
+
+  AddressEntity copyWith({
+    String? street,
+    String? city,
+    String? state,
+    String? zipCode,
+  }) {
+    return AddressEntity(
+      street: street ?? this.street,
+      city: city ?? this.city,
+      state: state ?? this.state,
+      zipCode: zipCode ?? this.zipCode,
+    );
+  }
+}
+```
+
+### Entity Principal Referenciando a Entity Aninhada
+```dart
+// user_entity.dart
 import 'address_entity.dart';
-import 'user_notification_preferences_entity.dart';
 
 class UserEntity {
   const UserEntity({
     required this.id,
-    required this.rg,
-    required this.cpf,
     required this.name,
-    required this.birth,
-    required this.email,
-    required this.phone,
-    required this.gender,
     required this.address,
-    required this.personType,
-    required this.notificationPreferences,
-  }) : assert(id != '', 'ID não pode ser vazio'),
-       assert(cpf.length == 11, 'CPF deve ter exatamente 11 dígitos'),
-       assert(email != '', 'Email não pode ser vazio');
+  });
 
   final String id;
-  final String rg;
+  final String name;
+  final AddressEntity address;
+
+  UserEntity copyWith({
+    String? id,
+    String? name,
+    AddressEntity? address,
+  }) {
+    return UserEntity(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      address: address ?? this.address,
+    );
+  }
+}
+```
+
+---
+
+## 📚 Exemplos Práticos do Projeto
+
+### Exemplo 1: Entity Simples - AddressEntity
+```dart
+class AddressEntity {
+  AddressEntity({
+    required this.city,
+    required this.state,
+    required this.street,
+    required this.number,
+    required this.country,
+    required this.complement,
+    required this.postalCode,
+    required this.neighborhood,
+  });
+
+  final String city;
+  final String state;
+  final String street;
+  final String number;
+  final String country;
+  final String complement;
+  final String postalCode;
+  final String neighborhood;
+
+  AddressEntity copyWith({
+    String? city,
+    String? state,
+    String? street,
+    String? number,
+    String? country,
+    String? complement,
+    String? postalCode,
+    String? neighborhood,
+  }) {
+    return AddressEntity(
+      city: city ?? this.city,
+      state: state ?? this.state,
+      street: street ?? this.street,
+      number: number ?? this.number,
+      country: country ?? this.country,
+      complement: complement ?? this.complement,
+      postalCode: postalCode ?? this.postalCode,
+      neighborhood: neighborhood ?? this.neighborhood,
+    );
+  }
+}
+```
+
+### Exemplo 2: Entity Composta - UserEntity
+```dart
+import '../enums/user_gender_type.dart';
+import 'address_entity.dart';
+import 'user_company_entity.dart';
+import 'user_role_entity.dart';
+
+class UserEntity {
+  const UserEntity({
+    required this.id,
+    required this.cpf,
+    required this.name,
+    required this.email,
+    required this.phone,
+    required this.birth,
+    required this.gender,
+    required this.address,
+    required this.role,
+    required this.company,
+  });
+
+  final String id;
   final String cpf;
   final String name;
   final String email;
   final String phone;
   final DateTime birth;
-  final AddressEntity address;
   final UserGenderType gender;
-  final AccountPersonType personType;
-  final UserNotificationPreferencesEntity notificationPreferences;
+  final AddressEntity address;
+  final UserRoleEntity role;
+  final UserCompanyEntity company;
 
-  /// Cria uma cópia da entidade com os campos alterados
   UserEntity copyWith({
     String? id,
-    String? rg,
     String? cpf,
     String? name,
     String? email,
     String? phone,
     DateTime? birth,
-    AddressEntity? address,
     UserGenderType? gender,
-    AccountPersonType? personType,
-    UserNotificationPreferencesEntity? notificationPreferences,
+    AddressEntity? address,
+    UserRoleEntity? role,
+    UserCompanyEntity? company,
   }) {
     return UserEntity(
       id: id ?? this.id,
-      rg: rg ?? this.rg,
       cpf: cpf ?? this.cpf,
       name: name ?? this.name,
-      birth: birth ?? this.birth,
       email: email ?? this.email,
       phone: phone ?? this.phone,
+      birth: birth ?? this.birth,
       gender: gender ?? this.gender,
       address: address ?? this.address,
-      personType: personType ?? this.personType,
-      notificationPreferences: notificationPreferences ?? this.notificationPreferences,
+      role: role ?? this.role,
+      company: company ?? this.company,
     );
   }
-
-  /// Regra de negócio: verificar se é maior de idade
-  bool get isAdult {
-    final now = DateTime.now();
-    final eighteenYearsAgo = DateTime(now.year - 18, now.month, now.day);
-    return birth.isBefore(eighteenYearsAgo) || birth.isAtSameMomentAs(eighteenYearsAgo);
-  }
-
-  /// Regra de negócio: nome formatado para exibição
-  String get displayName {
-    final nameParts = name.trim().split(' ');
-    if (nameParts.length <= 2) return name;
-    return '${nameParts.first} ${nameParts.last}';
-  }
-
-  /// Regra de negócio: validar se pode receber notificações
-  bool canReceiveNotifications() {
-    return notificationPreferences.emailEnabled || 
-           notificationPreferences.smsEnabled;
-  }
-
-  /// Regra de negócio: CPF formatado para exibição
-  String get formattedCpf {
-    if (cpf.length != 11) return cpf;
-    return '${cpf.substring(0, 3)}.${cpf.substring(3, 6)}.${cpf.substring(6, 9)}-${cpf.substring(9)}';
-  }
-
-  /// Regra de negócio: verificar se é pessoa jurídica
-  bool get isLegalPerson => personType == AccountPersonType.company;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is UserEntity &&
-      runtimeType == other.runtimeType &&
-      id == other.id &&
-      rg == other.rg &&
-      cpf == other.cpf &&
-      name == other.name &&
-      birth == other.birth &&
-      email == other.email &&
-      phone == other.phone &&
-      gender == other.gender &&
-      address == other.address &&
-      personType == other.personType &&
-      notificationPreferences == other.notificationPreferences;
-
-  @override
-  int get hashCode =>
-      id.hashCode ^
-      rg.hashCode ^
-      cpf.hashCode ^
-      name.hashCode ^
-      birth.hashCode ^
-      email.hashCode ^
-      phone.hashCode ^
-      gender.hashCode ^
-      address.hashCode ^
-      personType.hashCode ^
-      notificationPreferences.hashCode;
-
-  @override
-  String toString() => 'UserEntity(id: $id, name: $name, email: $email)';
 }
 ```
 
----
-
-## 🎨 Boas Práticas para Entities
-
-### ✅ Faça
-
+### Exemplo 3: Entity com Múltiplos Objetos Aninhados - DistributorEntity
 ```dart
-// ✅ Use const constructor quando possível
-const UserEntity({required this.name, required this.email});
+import 'address_entity.dart';
+import 'bank_data_entity.dart';
 
-// ✅ Use final para imutabilidade
-final String name;
-
-// ✅ Parâmetros nomeados e required
-UserEntity({required this.name, required this.email});
-
-// ✅ Use assert para validações básicas no construtor
-const UserEntity({required this.email}) 
-    : assert(email != '', 'Email é obrigatório');
-
-// ✅ Métodos que expressam regras de negócio
-bool get isVip => totalPurchases > 10000;
-
-// ✅ copyWith para mutabilidade controlada
-UserEntity copyWith({String? name}) => UserEntity(name: name ?? this.name);
-
-// ✅ Implemente igualdade quando necessário para comparações
-@override
-bool operator ==(Object other) => /* implementação */;
-```
-
-### ❌ Não Faça
-
-```dart
-// ❌ Não use propriedades mutáveis
-String name; // sem final
-
-// ❌ Não use constructors não-const quando const é possível
-UserEntity({required this.name}); // deveria ser const
-
-// ❌ Não faça validações complexas/externas no construtor
-UserEntity({required this.email}) {
-  if (await emailExists(email)) throw ArgumentError(); // async no construtor
-}
-
-// ❌ Não importe dependências externas
-import 'package:http/http.dart'; // dependência externa
-
-// ❌ Não implemente lógica de infraestrutura
-void saveToDatabase() {} // responsabilidade da camada infra
-
-// ❌ Não use parâmetros posicionais
-UserEntity(this.name, this.email); // sem nomes
-
-// ❌ Não deixe de implementar igualdade em entities importantes
-// (sem == e hashCode quando necessário)
-```
-
----
-
-## 🔧 Padrões Avançados
-
-### Value Objects
-
-Para tipos mais complexos, crie value objects:
-
-```dart
-class Email {
-  const Email({required this.value}) 
-      : assert(value != '', 'Email não pode ser vazio');
-
-  final String value;
-
-  bool get isValid {
-    return RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value);
-  }
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) || 
-      other is Email && other.value == value;
-
-  @override
-  int get hashCode => value.hashCode;
-
-  @override
-  String toString() => 'Email($value)';
-}
-```
-
-### Entities com Comportamentos
-
-```dart
-class OrderEntity {
-  const OrderEntity({
+class DistributorEntity {
+  DistributorEntity({
     required this.id,
-    required this.items,
+    required this.cnpj,
+    required this.name,
+    required this.email,
+    required this.phoneNumber,
+    required this.uniqueCode,
+    required this.address,
+    required this.bankData,
+    required this.stage,
     required this.status,
-    required this.createdAt,
+    required this.dateStatus,
   });
 
   final String id;
-  final List<OrderItemEntity> items;
-  final OrderStatus status;
-  final DateTime createdAt;
+  final String cnpj;
+  final String name;
+  final String email;
+  final String phoneNumber;
+  final String uniqueCode;
+  final AddressEntity address;
+  final BankDataEntity bankData;
+  final String stage;
+  final String status;
+  final DateTime dateStatus;
 
-  // Regra de negócio: calcular total
-  double get totalAmount {
-    return items.fold(0.0, (sum, item) => sum + item.totalPrice);
-  }
-
-  // Regra de negócio: verificar se pode ser cancelado
-  bool canBeCancelled() {
-    const cancelableStatuses = [OrderStatus.pending, OrderStatus.confirmed];
-    return cancelableStatuses.contains(status);
-  }
-
-  // Regra de negócio: aplicar desconto
-  OrderEntity applyDiscount({required double percentage}) {
-    if (percentage < 0 || percentage > 100) {
-      throw ArgumentError('Desconto deve estar entre 0 e 100%');
-    }
-
-    final discountedItems = items.map((item) => 
-      item.applyDiscount(percentage: percentage)
-    ).toList();
-
-    return copyWith(items: discountedItems);
-  }
-
-  OrderEntity copyWith({
+  DistributorEntity copyWith({
     String? id,
-    List<OrderItemEntity>? items,
-    OrderStatus? status,
-    DateTime? createdAt,
+    String? cnpj,
+    String? name,
+    String? email,
+    String? phoneNumber,
+    String? uniqueCode,
+    AddressEntity? address,
+    BankDataEntity? bankData,
+    String? stage,
+    String? status,
+    DateTime? dateStatus,
   }) {
-    return OrderEntity(
+    return DistributorEntity(
       id: id ?? this.id,
-      items: items ?? this.items,
+      cnpj: cnpj ?? this.cnpj,
+      name: name ?? this.name,
+      email: email ?? this.email,
+      phoneNumber: phoneNumber ?? this.phoneNumber,
+      uniqueCode: uniqueCode ?? this.uniqueCode,
+      address: address ?? this.address,
+      bankData: bankData ?? this.bankData,
+      stage: stage ?? this.stage,
       status: status ?? this.status,
-      createdAt: createdAt ?? this.createdAt,
+      dateStatus: dateStatus ?? this.dateStatus,
     );
   }
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is OrderEntity &&
-      runtimeType == other.runtimeType &&
-      id == other.id &&
-      items == other.items &&
-      status == other.status &&
-      createdAt == other.createdAt;
-
-  @override
-  int get hashCode =>
-      id.hashCode ^
-      items.hashCode ^
-      status.hashCode ^
-      createdAt.hashCode;
-
-  @override
-  String toString() => 'OrderEntity(id: $id, status: $status, total: $totalAmount)';
 }
 ```
 
 ---
 
-## 📋 Checklist para Criação de Entities
+## ✅ Checklist para Criar uma Entity
 
-- [ ] **Construtor const**: Usa `const` quando possível?
-- [ ] **Imutabilidade**: Todas as propriedades são `final`?
-- [ ] **Construtor**: Usa parâmetros nomeados com `required`?
-- [ ] **Validações**: Validações básicas estão usando `assert`?
-- [ ] **copyWith**: Método implementado corretamente?
-- [ ] **Regras de Negócio**: Métodos expressos de forma clara?
-- [ ] **Dependências**: Não importa nada da infraestrutura?
-- [ ] **Nomenclatura**: Nome termina com `Entity`?
-- [ ] **Igualdade**: `==`, `hashCode` e `toString` implementados quando necessário?
-- [ ] **Documentação**: Métodos complexos estão documentados?
+- [ ] Nome segue padrão `[Nome]Entity`
+- [ ] Arquivo segue padrão `[nome]_entity.dart`
+- [ ] Todos os campos são `final`
+- [ ] Constructor usa `required` para campos obrigatórios
+- [ ] Constructor é `const` quando possível
+- [ ] Método `copyWith` implementado para todos os campos
+- [ ] Imports apenas de outras entities, enums ou value objects do domain
+- [ ] Sem lógica de serialização (JSON)
+- [ ] Sem dependências externas (packages)
+- [ ] Tipos primitivos ou outras entities do domain
 
 ---
 
-## 🚀 Exemplo de Uso
+## 🚫 Anti-Patterns - O que NÃO fazer
 
+### ❌ Não adicionar serialização JSON
 ```dart
-void exemploDeUso() {
-  // Criação da entidade com const constructor
-  const user = UserEntity(
-    id: '123',
-    name: 'João Silva',
-    email: 'joao@email.com',
-    cpf: '12345678901',
-    rg: '123456789',
-    phone: '11999999999',
-    birth: DateTime(1990, 5, 15),
-    gender: UserGenderType.male,
-    address: AddressEntity(/* ... */),
-    personType: AccountPersonType.individual,
-    notificationPreferences: UserNotificationPreferencesEntity(/* ... */),
-  );
+// ❌ ERRADO - Entity não deve ter fromJson/toJson
+class UserEntity {
+  factory UserEntity.fromJson(Map<String, dynamic> json) { ... }
+  Map<String, dynamic> toJson() { ... }
+}
+```
 
-  // Uso das regras de negócio
-  if (user.isAdult) {
-    print('Usuário é maior de idade');
-  }
-
-  if (user.canReceiveNotifications()) {
-    print('Pode enviar notificações para: ${user.displayName}');
-  }
-
-  print('CPF formatado: ${user.formattedCpf}');
-  print('É pessoa jurídica: ${user.isLegalPerson}');
-
-  // Modificação via copyWith
-  final updatedUser = user.copyWith(
-    email: 'novo.email@email.com',
-  );
-
-  // Comparação entre entities
-  final anotherUser = user.copyWith(name: 'Maria Silva');
-  print('São o mesmo usuário? ${user == anotherUser}'); // false
-
-  // Value objects
-  const email = Email(value: 'test@example.com');
-  if (email.isValid) {
-    print('Email válido: $email');
+### ❌ Não adicionar lógica de negócio complexa
+```dart
+// ❌ ERRADO - Lógica complexa deve estar no UseCase
+class UserEntity {
+  bool canPurchase() {
+    // lógica complexa aqui
   }
 }
 ```
 
-Esta estrutura garante que suas entities sejam robustas, testáveis e sigam os princípios do Clean Architecture.
+### ❌ Não usar campos mutáveis
+```dart
+// ❌ ERRADO - Campos devem ser final
+class UserEntity {
+  String name; // sem final
+}
+```
+
+### ❌ Não importar packages externos
+```dart
+// ❌ ERRADO - Entity não deve depender de packages externos
+import 'package:dio/dio.dart';
+import '../infra/models/user_model.dart';
+```
+
+---
+
+## 🎯 Regras de Ouro
+
+1. **Imutabilidade**: Todos os campos são `final`
+2. **Pureza**: Sem dependências externas, apenas domain
+3. **Simplicidade**: Apenas dados e copyWith
+4. **Tipagem Forte**: Use tipos específicos (DateTime, Enums, outras Entities)
+5. **Nomenclatura**: Sempre `[Nome]Entity` e `[nome]_entity.dart`
+
+---
+
+## 📖 Próximos Passos
+
+Após criar a Entity no Domain:
+1. Criar o Model correspondente na camada Infra (com fromJson/toJson)
+2. Criar Failures específicas se necessário
+3. Criar Repository Interface que usa a Entity
+4. Criar UseCase Interface que usa a Entity
