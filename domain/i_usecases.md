@@ -1,277 +1,71 @@
-# Domain Use Cases (Interfaces) - Clean Architecture
+# UseCase Interfaces - Domain Layer
 
-## 📋 Visão Geral
+## 📋 O que são UseCase Interfaces?
 
-As **interfaces de Use Cases** no domínio definem **O QUE** o sistema deve fazer em termos de regras de negócio. Elas representam **contratos puros** dos casos de uso, estabelecendo **QUE** operações devem existir sem se preocupar com **COMO** implementá-las.
+**UseCase Interfaces** são contratos que definem **operações de negócio** que o sistema deve realizar. Eles representam casos de uso específicos e orquestram a lógica de negócio, coordenando Repositories e aplicando regras do domínio.
 
-### 🎯 Princípios Fundamentais das Interfaces UseCase
+### 🎯 Responsabilidades
 
-**O QUE as interfaces DEFINEM:**
-- ✅ **Contratos de Negócio**: QUE operações o sistema deve realizar
-- ✅ **Assinaturas Puras**: Métodos sem implementação, apenas contratos
-- ✅ **Regras de Entrada/Saída**: Parâmetros e retornos tipados fortemente
-- ✅ **Tratamento de Erros**: Either pattern para validações de sucesso/falha
-- ✅ **Intenções de Negócio**: Documentação clara do propósito de cada operação
+**✅ O que UseCase Interfaces FAZEM:**
 
-**O QUE as interfaces NÃO FAZEM:**
-- ❌ **Não implementam lógica**: Apenas definem contratos
-- ❌ **Não dependem de infraestrutura**: Zero dependências externas
-- ❌ **Não especificam tecnologias**: Não definem HTTP, DB, cache, etc.
-- ❌ **Não contêm detalhes**: Apenas assinaturas e documentação
-- ❌ **Não quebram SOLID**: Dependem apenas de abstrações (entities, failures)
+- Definem **operações de negócio** específicas (GetUser, CreateUser, etc.)
+- Especificam **assinaturas de métodos** sem implementação
+- Retornam **Either<Failure, Success>** para tratamento de erros
+- Trabalham com **Entities** (objetos de negócio puros)
+- Representam **intenções do usuário** ou sistema
 
-### 📍 Localização na Arquitetura
+**❌ O que UseCase Interfaces NÃO FAZEM:**
 
-```
-lib/
-└── src/
-    └── domain/
-        └── usecases/
-            ├── i_user_usecase.dart
-            ├── i_product_usecase.dart
-            ├── i_order_usecase.dart
-            └── i_auth_usecase.dart
-```
+- Não implementam lógica (apenas definem contratos)
+- Não acessam dados diretamente (usam Repositories)
+- Não conhecem detalhes de implementação
+- Não fazem transformação de dados (Model ↔ Entity)
 
 ---
 
-## 🔒 Princípios SOLID em Interfaces UseCase
-
-### 1. **Dependency Inversion Principle (DIP)**
-```dart
-// ✅ Interface depende apenas de abstrações
-abstract class IUserUsecase {
-  // Depende de IUserRepository (abstração), não UserRepository (implementação)
-  Future<Either<IUserFailure, UserEntity>> getLoggedUser();
-}
-
-// ❌ Não deve depender de implementações concretas
-// import 'package:dio/dio.dart'; // NUNCA!
-// import '../infra/repositories/user_repository.dart'; // NUNCA!
-```
-
-### 2. **Interface Segregation Principle (ISP)**
-```dart
-// ✅ Interfaces específicas por responsabilidade
-abstract class IUserAuthUsecase {
-  Future<Either<IUserFailure, UserEntity>> login();
-  Future<Either<IUserFailure, Unit>> logout();
-}
-
-abstract class IUserProfileUsecase {
-  Future<Either<IUserFailure, UserEntity>> getProfile();
-  Future<Either<IUserFailure, UserEntity>> updateProfile();
-}
-
-// ❌ Interface monolítica com múltiplas responsabilidades
-abstract class IUserEverythingUsecase {
-  // login, logout, profile, notifications, orders... EVITAR!
-}
-```
-
-### 3. **Tipagem Forte e Either Pattern**
-```dart
-// ✅ Tipagem forte com Either para tratamento de erros
-abstract class IUserUsecase {
-  /// SEMPRE retornar Either<Failure, Success>
-  Future<Either<IUserFailure, UserEntity>> getLoggedUser();
-  
-  /// Parâmetros tipados e obrigatórios quando necessário
-  Future<Either<IUserFailure, UserEntity>> updateUser({
-    required UserEntity data, // Tipagem forte
-  });
-  
-  /// Unit para operações sem retorno específico
-  Future<Either<IUserFailure, Unit>> deleteUser({
-    required String id,
-  });
-}
-
-// ❌ Evitar retornos sem tratamento de erro
-// Future<UserEntity> getUser(); // Pode falhar sem tratamento
-// UserEntity getUserSync(); // Operações síncronas para I/O
-// Future<bool> updateUser(); // Retorno genérico demais
-```
-
----
-
-## 🏗️ Estrutura Base de Interfaces
-
-### Template de Interface
+## 🏗️ Exemplo Completo: IUserUsecase
 
 ```dart
-import 'package:base_core/base_core.dart' show Either;
-import '../entities/[entity_name].dart';
-import '../failures/i_[entity]_failures.dart';
-
-/// Define os casos de uso relacionados a [Entity]
-/// 
-/// Esta interface estabelece os contratos para todas as operações
-/// de negócio que podem ser realizadas com [Entity].
-abstract class I[Nome]Usecase {
-  /// Obtém [entity] por identificador único
-  /// 
-  /// [id] deve ser um identificador válido e não vazio
-  /// 
-  /// Retorna [Right] com a [entity] encontrada ou
-  /// [Left] com erro específico se não encontrada/erro
-  Future<Either<I[Nome]Failure, [Nome]Entity>> get[Nome]ById({
-    required String id,
-  });
-
-  /// Lista todas as [entities] com paginação opcional
-  /// 
-  /// [page] página desejada (começa em 1)
-  /// [limit] quantidade máxima de itens por página
-  /// [filters] filtros opcionais específicos do domínio
-  /// 
-  /// Retorna [Right] com lista de [entities] ou
-  /// [Left] com erro específico se falha na operação
-  Future<Either<I[Nome]Failure, List<[Nome]Entity>>> getAll[Nome]s({
-    int? page,
-    int? limit,
-    Map<String, dynamic>? filters,
-  });
-
-  /// Cria uma nova [entity] no sistema
-  /// 
-  /// [data] entidade com dados válidos para criação
-  /// 
-  /// Retorna [Right] com [entity] criada ou
-  /// [Left] com erro de validação/criação
-  Future<Either<I[Nome]Failure, [Nome]Entity>> create[Nome]({
-    required [Nome]Entity data,
-  });
-
-  /// Atualiza [entity] existente
-  /// 
-  /// [data] entidade com dados atualizados (deve conter ID válido)
-  /// 
-  /// Retorna [Right] com [entity] atualizada ou
-  /// [Left] com erro de validação/não encontrada
-  Future<Either<I[Nome]Failure, [Nome]Entity>> update[Nome]({
-    required [Nome]Entity data,
-  });
-
-  /// Remove [entity] do sistema
-  /// 
-  /// [id] identificador da [entity] a ser removida
-  /// 
-  /// Retorna [Right] com Unit se removida com sucesso ou
-  /// [Left] com erro se não encontrada/não pode ser removida
-  Future<Either<I[Nome]Failure, Unit>> delete[Nome]({
-    required String id,
-  });
-
-  /// Busca [entities] por critério textual
-  /// 
-  /// [query] termo de busca (não pode ser vazio)
-  /// [limit] limite de resultados retornados
-  /// 
-  /// Retorna [Right] com lista de [entities] encontradas ou
-  /// [Left] com erro na busca
-  Future<Either<I[Nome]Failure, List<[Nome]Entity>>> search[Nome]s({
-    required String query,
-    int? limit,
-  });
-
-  // Métodos específicos do domínio devem ser documentados
-  // com suas regras de negócio específicas
-  
-  /// Executa operação específica do domínio [NomeOperacao]
-  /// 
-  /// [params] parâmetros específicos da operação
-  /// 
-  /// Retorna [Right] com resultado específico ou
-  /// [Left] com erro específico da operação
-  Future<Either<I[Nome]Failure, [TipoResultado]>> execute[NomeOperacao]({
-    required [TipoParametros] params,
-  });
-}
-```
-
----
-
-## 📚 Exemplo Prático: IUserUsecase
-
-### Interface Real Documentada
-
-```dart
-import 'package:base_core/base_core.dart' show Either;
-import '../../../cogna_resale_core.dart' show Unit;
+import 'package:base_core/base_core.dart' show Either, Unit;
 import '../entities/user_entity.dart';
+import '../entities/user_filters_entity.dart';
+import '../entities/user_result_entity.dart';
 import '../failures/i_user_failures.dart';
 
-/// Interface que define os casos de uso relacionados a usuários
-/// 
-/// Esta interface estabelece OS CONTRATOS para operações de:
-/// - Autenticação e sessão do usuário
-/// - Gerenciamento de perfil e dados pessoais
-/// - Operações de segurança (senha, exclusão)
-/// - Validações de negócio específicas de usuário
 abstract class IUserUsecase {
-  /// Obtém o usuário atualmente logado no sistema
-  /// 
-  /// Esta operação deve:
-  /// - Verificar se existe sessão ativa
-  /// - Aplicar regras de negócio para usuário logado
-  /// - Validar permissões de acesso
-  /// 
-  /// Retorna [Right] com [UserEntity] do usuário logado ou
-  /// [Left] com:
-  /// - [UserNotFoundError] se nenhum usuário logado
-  /// - [UserSessionExpiredError] se sessão expirou
-  /// - [UserServerError] para outros erros de sistema
+  // 1. Buscar usuário logado
   Future<Either<IUserFailure, UserEntity>> getLoggedUser();
 
-  /// Exclui permanentemente a conta do usuário
-  /// 
-  /// Esta operação deve:
-  /// - Validar se usuário pode ser excluído (regras de negócio)
-  /// - Verificar dependências (pedidos, assinaturas, etc.)
-  /// - Aplicar soft delete ou hard delete conforme regra
-  /// 
-  /// Retorna [Right] com [UserEntity] dos dados antes da exclusão ou
-  /// [Left] com:
-  /// - [UserValidationError] se não pode ser excluído
-  /// - [UserNotFoundError] se usuário não existe
-  /// - [UserBusinessRuleError] para violações de negócio
-  Future<Either<IUserFailure, UserEntity>> deleteUserAccount();
+  // 2. Buscar usuário por ID
+  Future<Either<IUserFailure, UserEntity>> getUserById({
+    required String id,
+  });
 
-  /// Atualiza dados do perfil do usuário
-  /// 
-  /// [data] entidade com dados atualizados (deve conter ID válido)
-  /// 
-  /// Esta operação deve:
-  /// - Validar regras de negócio dos novos dados
-  /// - Verificar unicidade de email/CPF se alterados
-  /// - Aplicar validações específicas do domínio
-  /// 
-  /// Retorna [Right] com [UserEntity] atualizada ou
-  /// [Left] com:
-  /// - [UserValidationError] se dados inválidos
-  /// - [UserConflictError] se email/CPF já existe
-  /// - [UserBusinessRuleError] para violações de regras
+  // 3. Listar usuários com filtros
+  Future<Either<IUserFailure, UserResultEntity>> fetchUsers({
+    required UserFiltersEntity filters,
+  });
+
+  // 4. Criar novo usuário
+  Future<Either<IUserFailure, UserEntity>> createUser({
+    required UserEntity data,
+  });
+
+  // 5. Atualizar usuário
   Future<Either<IUserFailure, UserEntity>> updateUser({
     required UserEntity data,
   });
 
-  /// Altera a senha do usuário
-  /// 
-  /// [id] identificador do usuário
-  /// [newPassword] nova senha (deve atender critérios de segurança)
-  /// [currentPassword] senha atual para validação
-  /// 
-  /// Esta operação deve:
-  /// - Validar senha atual antes da alteração
-  /// - Aplicar regras de complexidade para nova senha
-  /// - Verificar histórico de senhas se aplicável
-  /// 
-  /// Retorna [Right] com [Unit] se alterada com sucesso ou
-  /// [Left] com:
-  /// - [UserValidationError] se dados inválidos
-  /// - [UserAuthenticationError] se senha atual incorreta
-  /// - [UserPasswordPolicyError] se nova senha não atende critérios
+  // 6. Atualizar usuário por ID
+  Future<Either<IUserFailure, UserEntity>> updateUserById({
+    required String id,
+    required UserEntity data,
+  });
+
+  // 7. Deletar conta do usuário
+  Future<Either<IUserFailure, UserEntity>> deleteUserAccount();
+
+  // 8. Alterar senha do usuário
   Future<Either<IUserFailure, Unit>> changeUserPassword({
     required String id,
     required String newPassword,
@@ -280,337 +74,267 @@ abstract class IUserUsecase {
 }
 ```
 
-### Características da Interface Real
+### 🔑 Elementos Essenciais
 
-✅ **Segue princípios SOLID:**
-- Importa apenas abstrações (`Either`, `Unit`, `UserEntity`, `IUserFailure`)
-- Zero dependências de implementação
-- Interface segregada (apenas operações de usuário)
-
-✅ **Tipagem forte:**
-- Todos os métodos retornam `Either<IUserFailure, Success>`
-- Parâmetros obrigatórios com `required`
-- Tipos específicos para cada operação
-
-✅ **Documentação de contratos:**
-- Cada método define claramente O QUE deve fazer
-- Especifica regras de negócio aplicáveis
-- Mapeia cenários de erro possíveis
+1. **Classe abstrata** - Define contrato sem implementação
+2. **Either<Failure, Success>** - Tratamento de erros tipado
+3. **Entities** - Trabalha com objetos de negócio puros
+4. **Named parameters** - Parâmetros explícitos e legíveis
+5. **Future** - Operações assíncronas
+6. **Métodos representam casos de uso** - Cada método é uma operação de negócio
 
 ---
 
+## 🎯 Diferença: UseCase vs Repository
+
+### Repository (Acesso aos Dados)
+
+```dart
+abstract class IUserRepository {
+  // Foco: COMO acessar os dados
+  Future<Either<IUserFailure, UserEntity>> getUserById({required String id});
+  Future<Either<IUserFailure, UserEntity>> updateUser({required UserEntity data});
+}
+```
+
+### UseCase (Lógica de Negócio)
+
+```dart
+abstract class IUserUsecase {
+  // Foco: O QUE fazer com os dados (regras de negócio)
+  Future<Either<IUserFailure, UserEntity>> getUserById({required String id});
+  Future<Either<IUserFailure, UserEntity>> updateUser({required UserEntity data});
+}
+```
+
+**Diferença na Implementação:**
+
+- **Repository**: Coordena datasources, transforma Models em Entities
+- **UseCase**: Aplica regras de negócio, valida dados, orquestra múltiplos repositories
+
 ---
 
-## 🎨 Padrões de Implementação
+## 🎯 Padrões de Métodos
 
-### 1. Validação de Entrada
+### 1. **Operações de Consulta (Get/Fetch)**
 
 ```dart
-@override
-Future<Either<IProductFailure, ProductEntity>> createProduct({
-  required ProductEntity data,
-}) async {
-  // Validações básicas
-  if (data.name.isEmpty) {
-    return Left(ProductValidationError(message: 'Nome é obrigatório'));
-  }
+// Buscar único recurso
+Future<Either<IUserFailure, UserEntity>> getUserById({
+  required String id,
+});
 
-  if (data.price <= 0) {
-    return Left(ProductValidationError(message: 'Preço deve ser maior que zero'));
-  }
+// Buscar recurso logado
+Future<Either<IUserFailure, UserEntity>> getLoggedUser();
 
-  // Validações de negócio
-  if (data.category.isRestricted && !data.hasRequiredCertifications) {
-    return Left(ProductValidationError(
-      message: 'Produto requer certificações específicas',
-    ));
-  }
-
-  return repository.createProduct(data: data);
-}
+// Listar com filtros
+Future<Either<IUserFailure, UserResultEntity>> fetchUsers({
+  required UserFiltersEntity filters,
+});
 ```
 
-### 2. Orquestração de Múltiplos Repositories
+**Use para:** Buscar dados sem modificá-los.
+
+### 2. **Operações de Comando (Create/Update/Delete)**
 
 ```dart
-@override
-Future<Either<IOrderFailure, OrderEntity>> createOrder({
-  required OrderEntity orderData,
-}) async {
-  // 1. Validar produtos
-  for (final item in orderData.items) {
-    final productResult = await productRepository.getProductById(
-      id: item.productId,
-    );
-    
-    final isValid = productResult.fold(
-      (failure) => false,
-      (product) => product.isAvailable && product.stock >= item.quantity,
-    );
+// Criar
+Future<Either<IUserFailure, UserEntity>> createUser({
+  required UserEntity data,
+});
 
-    if (!isValid) {
-      return Left(OrderValidationError(
-        message: 'Produto ${item.productId} não disponível',
-      ));
-    }
-  }
-
-  // 2. Verificar usuário
-  final userResult = await userRepository.getUserById(id: orderData.customerId);
-  
-  return userResult.fold(
-    (failure) => Left(OrderValidationError(message: 'Usuário inválido')),
-    (user) async {
-      // 3. Aplicar regras de negócio
-      if (!user.canPurchase) {
-        return Left(OrderValidationError(
-          message: 'Usuário não pode realizar compras',
-        ));
-      }
-
-      // 4. Criar pedido
-      final result = await orderRepository.createOrder(data: orderData);
-
-      // 5. Atualizar estoque (se sucesso)
-      return result.fold(
-        (failure) => Left(failure),
-        (order) async {
-          await _updateProductStock(order.items);
-          await _sendNotificationToUser(user, order);
-          return Right(order);
-        },
-      );
-    },
-  );
-}
-```
-
-### 3. Tratamento de Eventos/Notificações
-
-```dart
-@override
+// Atualizar
 Future<Either<IUserFailure, UserEntity>> updateUser({
   required UserEntity data,
-}) async {
-  final result = await repository.updateUser(data: data);
+});
 
-  return result.fold(
-    (failure) => Left(failure),
-    (user) async {
-      // Eventos pós-atualização
-      await _publishUserUpdatedEvent(user);
-      
-      // Notificações condicionais
-      if (user.notificationPreferences.emailEnabled) {
-        await _sendEmailNotification(user, 'Perfil atualizado com sucesso');
-      }
-
-      return Right(user);
-    },
-  );
-}
-
-Future<void> _publishUserUpdatedEvent(UserEntity user) async {
-  await eventBus?.publish(UserUpdatedEvent(
-    userId: user.id,
-    timestamp: DateTime.now(),
-    changes: ['profile', 'preferences'],
-  ));
-}
+// Deletar
+Future<Either<IUserFailure, Unit>> deleteUser({
+  required String id,
+});
 ```
+
+**Use para:** Modificar dados (criar, atualizar, deletar).
+
+### 3. **Operações Específicas de Negócio**
+
+```dart
+// Operação específica com regras de negócio
+Future<Either<IUserFailure, Unit>> changeUserPassword({
+  required String id,
+  required String newPassword,
+  required String currentPassword,
+});
+
+// Operação complexa que envolve múltiplos passos
+Future<Either<IUserFailure, UserEntity>> activateUserAccount({
+  required String id,
+  required String activationCode,
+});
+```
+
+**Use para:** Operações que não são CRUD simples e envolvem regras de negócio.
 
 ---
 
-## � Template para Interfaces de UseCase
+## 🎨 Padrões e Convenções
 
-### Estrutura Básica
+### ✅ Nomenclatura
+
+| Tipo          | Padrão                      | Exemplo                                    |
+| ------------- | --------------------------- | ------------------------------------------ |
+| **Interface** | `I{Contexto}Usecase`        | `IUserUsecase`, `IProductUsecase`          |
+| **Arquivo**   | `i_{contexto}_usecase.dart` | `i_user_usecase.dart`                      |
+| **Métodos**   | `verbo + Substantivo`       | `getUser`, `createUser`, `activateAccount` |
+
+### ✅ Estrutura do Arquivo
 
 ```dart
-import 'package:base_core/base_core.dart' show Either;
-import '../entities/[entity]_entity.dart';
-import '../failures/i_[entity]_failures.dart';
+// 1. Imports
+import 'package:base_core/base_core.dart' show Either, Unit;
+import '../entities/user_entity.dart';
+import '../failures/i_user_failures.dart';
 
-/// Interface que define os casos de uso para [Entity]
-/// 
-/// Esta interface estabelece os contratos para operações relacionadas
-/// a [descrição da entidade], incluindo:
-/// - [operação 1]
-/// - [operação 2]
-/// - [operação N]
-abstract class I[Entity]Usecase {
-  /// [Breve descrição da operação]
-  /// 
-  /// [param] - descrição do parâmetro (obrigatório/opcional)
-  /// 
-  /// Regras de negócio aplicadas:
-  /// - [regra 1]
-  /// - [regra 2]
-  /// 
-  /// Retorna [Right] com [tipo de retorno] ou
-  /// [Left] com:
-  /// - [TipoError] em caso de [condição]
-  /// - [OutroTipoError] em caso de [outra condição]
-  Future<Either<I[Entity]Failure, [ReturnType]>> [methodName]({
-    required [Type] [param],
-    [Type]? [optionalParam],
+// 2. Interface abstrata
+abstract class IUserUsecase {
+  // 3. Métodos (agrupados por tipo de operação)
+
+  // Consultas
+  Future<Either<IUserFailure, UserEntity>> getLoggedUser();
+  Future<Either<IUserFailure, UserEntity>> getUserById({required String id});
+
+  // Comandos
+  Future<Either<IUserFailure, UserEntity>> createUser({required UserEntity data});
+  Future<Either<IUserFailure, UserEntity>> updateUser({required UserEntity data});
+  Future<Either<IUserFailure, Unit>> deleteUser({required String id});
+
+  // Operações específicas
+  Future<Either<IUserFailure, Unit>> changePassword({
+    required String id,
+    required String newPassword,
+    required String currentPassword,
   });
 }
 ```
 
-### Convenções de Interface
+---
 
-**Nomenclatura:**
-- Interface: `I[Entity]Usecase`
-- Métodos: `[verb][Entity][Complement]` (ex: `getUserById`, `createUser`)
+## 📋 Checklist de Implementação
 
-**Documentação Obrigatória:**
-- Primeira linha: breve descrição da operação
-- Parâmetros: descrição e obrigatoriedade
-- Regras de negócio: quais regras se aplicam
-- Retornos: mapeamento de sucessos e erros possíveis
+Ao criar um UseCase Interface:
 
-**Padrões de Retorno:**
-- Sempre `Future<Either<IFailure, Success>>`
-- Parâmetros nomeados com `required` quando obrigatórios
-- Importar apenas entities e failures do domain
-
-### Tipos de Erro Comuns
-
-```dart
-// Padrões de falhas para documentação
-abstract class I[Entity]Failure {
-  String get message;
-}
-
-class [Entity]ValidationError extends I[Entity]Failure {
-  // Dados de entrada inválidos
-}
-
-class [Entity]NotFoundError extends I[Entity]Failure {
-  // Entidade não encontrada
-}
-
-class [Entity]BusinessRuleError extends I[Entity]Failure {
-  // Violação de regras de negócio
-}
-
-class [Entity]AuthorizationError extends I[Entity]Failure {
-  // Operação não autorizada
-}
-
-class [Entity]ConflictError extends I[Entity]Failure {
-  // Conflito com dados existentes
-}
-```
+- [ ] **Nomenclatura** segue padrão (`I{Contexto}Usecase`)
+- [ ] **Arquivo nomeado** corretamente (`i_{contexto}_usecase.dart`)
+- [ ] **Classe abstrata** (sem implementação)
+- [ ] **Todos os métodos** retornam `Either<Failure, Success>`
+- [ ] **Usa Entities** do domain (não Models)
+- [ ] **Usa Failures** específicos do contexto
+- [ ] **Named parameters** para clareza
+- [ ] **Métodos representam casos de uso** de negócio
+- [ ] **Imports apenas do domain** (entities, failures)
 
 ---
 
-## 📋 Checklist para Interfaces UseCase
+## 🚀 Benefícios dos UseCase Interfaces
 
-### Checklist de Criação ✅
-
-**Estrutura da Interface:**
-- [ ] Localizada em `lib/src/domain/usecases/`
-- [ ] Nome seguindo padrão `I[Entity]Usecase`
-- [ ] Declarada como `abstract class`
-- [ ] Imports apenas de entities e failures do domain
-- [ ] Sem implementação de métodos
-
-**Métodos da Interface:**
-- [ ] Todos os métodos retornam `Future<Either<IFailure, Result>>`
-- [ ] Parâmetros nomeados com `required` quando obrigatórios
-- [ ] Nomes descritivos seguindo convenção `[verb][Entity][Complement]`
-- [ ] Documentação completa de cada método
-- [ ] Especificação clara de regras de negócio aplicáveis
-
-**Documentação Obrigatória:**
-- [ ] Descrição geral da interface (responsabilidades)
-- [ ] Descrição breve de cada operação
-- [ ] Documentação de todos os parâmetros
-- [ ] Mapeamento de regras de negócio aplicadas
-- [ ] Especificação de todos os tipos de erro possíveis
-- [ ] Exemplos de uso quando necessário
-
-**Padrões de Retorno:**
-- [ ] Sempre `Either<IFailure, Success>`
-- [ ] Métodos assíncronos com `Future`
-- [ ] Failures específicas para cada tipo de erro
-- [ ] Tipos de retorno bem definidos (entities, primitivos, Unit)
-
----
-
-## 🎯 Diretrizes para Interfaces
-
-### ✅ Boas Práticas
+### ✅ Single Responsibility Principle (SRP)
 
 ```dart
-// ✅ Interface bem documentada
-/// Interface que define os casos de uso para User
-/// 
-/// Responsável por estabelecer contratos para:
-/// - Autenticação e gestão de sessão
-/// - Gerenciamento de perfil
-/// - Validações de negócio específicas
+// ❌ Um usecase fazendo muitas coisas
 abstract class IUserUsecase {
-  /// Obtém o usuário logado atual
-  /// 
-  /// Retorna [Right] com [UserEntity] do usuário logado ou
-  /// [Left] com [UserNotFoundError] se nenhum usuário logado
-  Future<Either<IUserFailure, UserEntity>> getLoggedUser();
+  Future<Either<IUserFailure, UserEntity>> doEverything();
 }
 
-// ✅ Parâmetros bem especificados
-Future<Either<IUserFailure, UserEntity>> updateUser({
-  required UserEntity data,
-  bool validateEmail = true,
-});
-
-// ✅ Métodos com propósito único
-Future<Either<IUserFailure, bool>> isEmailAvailable({
-  required String email,
-  String? excludeUserId,
-});
-```
-
-### ❌ Evitar
-
-```dart
-// ❌ Interface sem documentação
-abstract class IUserUsecase {
-  Future<Either<IUserFailure, UserEntity>> doSomething();
+// ✅ Cada usecase com responsabilidade única
+abstract class IGetUserUsecase {
+  Future<Either<IUserFailure, UserEntity>> call(String id);
 }
 
-// ❌ Métodos com múltiplas responsabilidades
-Future<Either<IUserFailure, UserEntity>> updateUserAndSendEmail();
+abstract class ICreateUserUsecase {
+  Future<Either<IUserFailure, UserEntity>> call(UserEntity data);
+}
 
-// ❌ Retornos inconsistentes
-Future<UserEntity> getUser(); // sem Either
-Either<IUserFailure, UserEntity> getUserSync(); // sem Future
-
-// ❌ Parâmetros posicionais obrigatórios
-Future<Either<IUserFailure, UserEntity>> updateUser(UserEntity data);
+abstract class IUpdateUserUsecase {
+  Future<Either<IUserFailure, UserEntity>> call(UserEntity data);
+}
 ```
 
----
-
-## 🚀 Exemplo de Uso da Interface
+### ✅ Testabilidade
 
 ```dart
-// Na camada de apresentação
-class UserController {
-  UserController({required this.userUsecase});
-  
-  final IUserUsecase userUsecase; // Dependendo da interface, não da implementação
+// Fácil criar mock para testes
+class MockUserUsecase implements IUserUsecase {
+  @override
+  Future<Either<IUserFailure, UserEntity>> getUserById({
+    required String id,
+  }) async {
+    return Right(UserEntity(/* dados de teste */));
+  }
+}
 
-  Future<void> updateUserProfile(UserEntity userData) async {
-    final result = await userUsecase.updateUser(data: userData);
-    
-    result.fold(
-      (failure) => _handleError(failure),
-      (user) => _handleSuccess(user),
-    );
+// Usar no teste
+final controller = UserController(MockUserUsecase());
+```
+
+### ✅ Separação de Responsabilidades
+
+```dart
+// UseCase: Regras de negócio
+class UpdateUserUsecase implements IUserUsecase {
+  @override
+  Future<Either<IUserFailure, UserEntity>> updateUser({
+    required UserEntity data,
+  }) async {
+    // 1. Validar regras de negócio
+    if (data.email.isEmpty) {
+      return Left(UserValidationError(message: 'Email obrigatório'));
+    }
+
+    // 2. Chamar repository
+    return repository.updateUser(data: data);
+  }
+}
+
+// Repository: Acesso aos dados
+class UserRepository implements IUserRepository {
+  @override
+  Future<Either<IUserFailure, UserEntity>> updateUser({
+    required UserEntity data,
+  }) async {
+    // 1. Transformar Entity → Model
+    final model = UserModel.fromEntity(data);
+
+    // 2. Chamar datasource
+    final result = await datasource.updateUser(model);
+
+    // 3. Transformar Model → Entity
+    return result.map((model) => model.toEntity);
   }
 }
 ```
 
-Esta estrutura garante que as interfaces sejam bem definidas e mantenham a separação clara entre as camadas do Clean Architecture.
+### ✅ Documentação Viva
+
+```dart
+// Interface documenta quais operações de negócio existem
+abstract class IUserUsecase {
+  // Olhando a interface, sei exatamente o que o sistema faz:
+  Future<Either<IUserFailure, UserEntity>> getLoggedUser();
+  Future<Either<IUserFailure, UserEntity>> createUser({required UserEntity data});
+  Future<Either<IUserFailure, UserEntity>> updateUser({required UserEntity data});
+  Future<Either<IUserFailure, Unit>> deleteUser({required String id});
+  Future<Either<IUserFailure, Unit>> changePassword({...});
+}
+```
+
+---
+
+## 🔗 Próximos Passos
+
+1. **[Implementar UseCase](../infra/usecases.md)** - Implementação real na Infrastructure
+2. **[Usar em Controllers](../presentation/controllers.md)** - Chamar UseCases na Presentation
+3. **[Criar Tests](../testing/unit-tests.md)** - Testar UseCases isoladamente
+
+---
+
+_UseCase Interfaces definem as operações de negócio do sistema, mantendo o Domain independente de detalhes de implementação._

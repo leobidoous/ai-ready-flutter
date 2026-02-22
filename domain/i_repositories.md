@@ -1,595 +1,330 @@
-# Domain Repositories (Interfaces) - Clean Architecture
+# Repository Interfaces - Domain Layer
 
-## 📚 Visão Geral
+## 📋 O que são Repository Interfaces?
 
-Esta documentação define as **interfaces de repositórios** da camada de **Domain** em nossa arquitetura limpa. As interfaces estabelecem **O QUE** deve ser feito em termos de acesso aos dados, definindo contratos puros sem se preocupar com **COMO** implementar.
+**Repository Interfaces** são contratos que definem **como acessar dados** sem especificar a implementação. Eles abstraem a origem dos dados (API, banco local, cache) e garantem que o Domain não dependa de detalhes técnicos.
 
-### 🎯 Princípios Fundamentais das Interfaces Repository
+### 🎯 Responsabilidades
 
-**O QUE as interfaces DEFINEM:**
-- ✅ **Contratos de Persistência**: QUE operações de dados devem existir
-- ✅ **Assinaturas Puras**: Métodos sem implementação, apenas contratos
-- ✅ **Operações CRUD**: Create, Read, Update, Delete tipados fortemente
-- ✅ **Tratamento de Erros**: Either pattern obrigatório para todas as operações
-- ✅ **Validações de Negócio**: Documentação das regras aplicáveis
+**✅ O que Repository Interfaces FAZEM:**
 
-**O QUE as interfaces NÃO FAZEM:**
-- ❌ **Não implementam acesso real**: Apenas definem contratos
-- ❌ **Não dependem de tecnologias**: Não especificam DB, HTTP, cache
-- ❌ **Não contêm lógica de infraestrutura**: Zero detalhes de implementação
-- ❌ **Não importam dependências externas**: Apenas entities e failures do domain
-- ❌ **Não quebram SOLID**: Dependem apenas de abstrações, nunca implementações
+- Definem **contratos de acesso aos dados** (CRUD operations)
+- Especificam **assinaturas de métodos** sem implementação
+- Retornam **Either<Failure, Success>** para tratamento de erros
+- Trabalham com **Entities** (objetos de negócio puros)
+- Abstraem a **origem dos dados** (API, DB, cache)
 
-```
+**❌ O que Repository Interfaces NÃO FAZEM:**
 
----
-
-## 🔒 Princípios SOLID em Interfaces Repository
-
-### 1. **Dependency Inversion Principle (DIP)**
-```dart
-// ✅ Interface depende apenas de abstrações do domain
-import '../entities/user_entity.dart';        // Abstração
-import '../failures/i_user_failures.dart';    // Abstração
-
-abstract class IUserRepository {
-  // Métodos dependem apenas de entities e failures (abstrações)
-  Future<Either<IUserFailure, UserEntity>> getUser();
-}
-
-// ❌ NUNCA depender de implementações concretas
-// import 'package:dio/dio.dart';                    // Implementação concreta
-// import '../infra/datasources/user_datasource.dart'; // Implementação concreta
-```
-
-### 2. **Interface Segregation Principle (ISP)**
-```dart
-// ✅ Interface específica por responsabilidade
-abstract class IUserRepository {
-  Future<Either<IUserFailure, UserEntity>> getLoggedUser();
-  Future<Either<IUserFailure, UserEntity>> updateUser({required UserEntity data});
-}
-
-// ✅ Separar interfaces por contextos diferentes
-abstract class IUserCacheRepository {
-  Future<Either<IUserFailure, UserEntity?>> getUserFromCache();
-  Future<Either<IUserFailure, Unit>> saveUserToCache({required UserEntity user});
-}
-
-// ❌ Interface única com responsabilidades misturadas
-abstract class IUserEverythingRepository {
-  // user operations + cache + auth + notifications... EVITAR!
-}
-```
-
-### 3. **Tipagem Forte e Either Pattern Obrigatório**
-```dart
-// ✅ Tipagem forte com Either para TODAS as operações
-abstract class IUserRepository {
-  /// SEMPRE Either<Failure, Success> para operações que podem falhar
-  Future<Either<IUserFailure, UserEntity>> getUserById({
-    required String id, // Tipagem forte e obrigatória
-  });
-  
-  /// Unit para operações sem retorno específico
-  Future<Either<IUserFailure, Unit>> deleteUser({
-    required String id,
-  });
-  
-  /// Listas também podem falhar
-  Future<Either<IUserFailure, List<UserEntity>>> getUsers({
-    int? page,
-    int? limit,
-  });
-}
-
-// ❌ Evitar operações sem tratamento de erro
-// Future<UserEntity> getUser();        // Pode falhar sem Either
-// UserEntity getUserSync();            // Operações síncronas para I/O  
-// Future<bool> deleteUser();           // Retorno genérico demais
-// List<UserEntity> getUsers();         // Sem tratamento de erro
-```
+- Não implementam lógica (apenas definem contratos)
+- Não conhecem detalhes de implementação (HTTP, SQL, etc.)
+- Não fazem transformação de dados (Model ↔ Entity)
+- Não contêm regras de negócio complexas
 
 ---
 
-## 🏗️ Estrutura de Arquivos
-
----
-
-## 🔍 Anatomia de uma Interface Repository
-
-### Componentes Principais
+## 🏗️ Exemplo Completo: IUserRepository
 
 ```dart
-import 'package:base_core/base_core.dart' show Either;
+import 'package:base_core/base_core.dart' show Either, Unit;
 import '../entities/user_entity.dart';
+import '../entities/user_filters_entity.dart';
+import '../entities/user_result_entity.dart';
 import '../failures/i_user_failures.dart';
 
-/// Interface que define o contrato para persistência de dados de usuários
-/// 
-/// Esta interface estabelece as operações de acesso aos dados para:
-/// - Operações CRUD básicas (Create, Read, Update, Delete)
-/// - Consultas específicas por critérios
-/// - Validações de unicidade
-/// - Operações de autenticação e sessão
 abstract class IUserRepository {
-  // Métodos definindo contratos de acesso aos dados
-}
-```
-
-### Elementos Essenciais
-
-1. **Imports Restritos**: Apenas entities e failures do domain
-2. **Abstract Class**: Interface pura sem implementação
-3. **Documentação Completa**: Contratos claros e bem documentados
-4. **Either Pattern**: Sempre `Either<Failure, Success>` para retornos
-5. **Future Methods**: Operações assíncronas para I/O
-
----
-
-## 📚 Exemplo Prático: IUserRepository
-
-### Interface Completa
-
-```dart
-import 'package:base_core/base_core.dart' show Either;
-import '../../../cogna_resale_core.dart' show Unit;
-import '../entities/user_entity.dart';
-import '../entities/user_notification_preferences_entity.dart';
-import '../failures/i_user_failures.dart';
-import '../enums/account_person_type.dart';
-
-/// Interface que define o contrato para persistência de dados de usuários
-/// 
-/// Esta interface estabelece as operações de acesso aos dados para:
-/// - Operações CRUD completas (Create, Read, Update, Delete)
-/// - Consultas por critérios específicos
-/// - Validações de unicidade e integridade
-/// - Gerenciamento de sessão e autenticação
-abstract class IUserRepository {
-  /// Obtém o usuário atualmente logado no sistema
-  /// 
-  /// Retorna [Right] com [UserEntity] do usuário logado ou
-  /// [Left] com:
-  /// - [UserNotFoundError] se nenhum usuário logado
-  /// - [UserSessionExpiredError] se sessão expirou
-  /// - [UserServerError] para erros de acesso aos dados
+  // 1. Buscar usuário logado
   Future<Either<IUserFailure, UserEntity>> getLoggedUser();
 
-  /// Obtém usuário específico por ID
-  /// 
-  /// [id] identificador único do usuário (não pode ser vazio)
-  /// 
-  /// Retorna [Right] com [UserEntity] encontrado ou
-  /// [Left] com:
-  /// - [UserValidationError] se ID inválido
-  /// - [UserNotFoundError] se usuário não existe
-  /// - [UserServerError] para erros de acesso aos dados
+  // 2. Buscar usuário por ID
   Future<Either<IUserFailure, UserEntity>> getUserById({
     required String id,
   });
 
-  /// Cria um novo usuário no sistema
-  /// 
-  /// [data] dados do usuário a ser criado (deve ter dados válidos)
-  /// 
-  /// Validações aplicadas:
-  /// - Email único no sistema
-  /// - CPF único no sistema
-  /// - Dados obrigatórios preenchidos
-  /// 
-  /// Retorna [Right] com [UserEntity] criado ou
-  /// [Left] com:
-  /// - [UserValidationError] se dados inválidos
-  /// - [UserConflictError] se email/CPF já existe
-  /// - [UserServerError] para erros de persistência
+  // 3. Listar usuários com filtros
+  Future<Either<IUserFailure, UserResultEntity>> fetchUsers({
+    required UserFiltersEntity filters,
+  });
+
+  // 4. Criar novo usuário
   Future<Either<IUserFailure, UserEntity>> createUser({
     required UserEntity data,
   });
 
-  /// Atualiza dados de um usuário existente
-  /// 
-  /// [data] dados atualizados do usuário (deve conter ID válido)
-  /// 
-  /// Validações aplicadas:
-  /// - Usuário deve existir
-  /// - Email único (exceto para o próprio usuário)
-  /// - CPF único (exceto para o próprio usuário)
-  /// 
-  /// Retorna [Right] com [UserEntity] atualizado ou
-  /// [Left] com:
-  /// - [UserValidationError] se dados inválidos
-  /// - [UserNotFoundError] se usuário não existe
-  /// - [UserConflictError] se email/CPF já existe
-  /// - [UserServerError] para erros de persistência
+  // 5. Atualizar usuário
   Future<Either<IUserFailure, UserEntity>> updateUser({
     required UserEntity data,
   });
 
-  /// Remove um usuário do sistema
-  /// 
-  /// [id] identificador do usuário a ser removido
-  /// 
-  /// ⚠️ OPERAÇÃO IRREVERSÍVEL ⚠️
-  /// Remove permanentemente o usuário e todos os dados relacionados
-  /// 
-  /// Retorna [Right] com [UserEntity] removido ou
-  /// [Left] com:
-  /// - [UserValidationError] se ID inválido
-  /// - [UserNotFoundError] se usuário não existe
-  /// - [UserBusinessRuleError] se violação de regras
-  /// - [UserServerError] para erros de persistência
-  Future<Either<IUserFailure, UserEntity>> deleteUser({
+  // 6. Atualizar usuário por ID
+  Future<Either<IUserFailure, UserEntity>> updateUserById({
     required String id,
+    required UserEntity data,
   });
 
-  /// Remove completamente a conta do usuário logado
-  /// 
-  /// Operação específica para auto-exclusão, aplicando regras 
-  /// de negócio específicas para conta própria
-  /// 
-  /// Retorna [Right] com [UserEntity] removido ou
-  /// [Left] com:
-  /// - [UserNotFoundError] se nenhum usuário logado
-  /// - [UserBusinessRuleError] se não pode remover conta própria
-  /// - [UserServerError] para erros de persistência
+  // 7. Deletar conta do usuário
   Future<Either<IUserFailure, UserEntity>> deleteUserAccount();
 
-  /// Altera a senha de um usuário
-  /// 
-  /// [id] identificador do usuário
-  /// [newPassword] nova senha (já criptografada)
-  /// [currentPassword] senha atual para verificação
-  /// 
-  /// Validações aplicadas:
-  /// - Verificação da senha atual
-  /// - Nova senha deve ser diferente da atual
-  /// 
-  /// Retorna [Right] com Unit se alterada com sucesso ou
-  /// [Left] com:
-  /// - [UserValidationError] se parâmetros inválidos
-  /// - [UserNotFoundError] se usuário não existe
-  /// - [UserAuthenticationError] se senha atual incorreta
-  /// - [UserServerError] para erros de persistência
+  // 8. Alterar senha do usuário
   Future<Either<IUserFailure, Unit>> changeUserPassword({
     required String id,
     required String newPassword,
     required String currentPassword,
   });
-
-  /// Busca usuários por critério textual
-  /// 
-  /// [query] termo de busca (nome, email) - mínimo 3 caracteres
-  /// [limit] máximo de resultados (padrão: 20, máximo: 100)
-  /// [offset] deslocamento para paginação (padrão: 0)
-  /// 
-  /// Retorna [Right] com lista de usuários encontrados ou
-  /// [Left] com:
-  /// - [UserValidationError] se query muito curta
-  /// - [UserServerError] para erros de consulta
-  Future<Either<IUserFailure, List<UserEntity>>> searchUsers({
-    required String query,
-    int? limit,
-    int? offset,
-  });
-
-  /// Obtém usuários filtrados por tipo de pessoa
-  /// 
-  /// [personType] tipo de pessoa a filtrar
-  /// [page] página desejada (padrão: 1)
-  /// [limit] itens por página (padrão: 20, máximo: 100)
-  /// 
-  /// Retorna [Right] com lista paginada ou
-  /// [Left] com:
-  /// - [UserValidationError] se parâmetros inválidos
-  /// - [UserServerError] para erros de consulta
-  Future<Either<IUserFailure, List<UserEntity>>> getUsersByPersonType({
-    required AccountPersonType personType,
-    int? page,
-    int? limit,
-  });
-
-  /// Valida se email está disponível para uso
-  /// 
-  /// [email] email a ser validado
-  /// [excludeUserId] ID do usuário a excluir da verificação (para updates)
-  /// 
-  /// Retorna [Right] com true se disponível ou
-  /// [Left] com:
-  /// - [UserValidationError] se email inválido
-  /// - [UserServerError] para erros de consulta
-  Future<Either<IUserFailure, bool>> isEmailAvailable({
-    required String email,
-    String? excludeUserId,
-  });
-
-  /// Valida se CPF está disponível para uso
-  /// 
-  /// [cpf] CPF a ser validado (apenas números)
-  /// [excludeUserId] ID do usuário a excluir da verificação
-  /// 
-  /// Retorna [Right] com true se disponível ou
-  /// [Left] com:
-  /// - [UserValidationError] se CPF inválido
-  /// - [UserServerError] para erros de consulta
-  Future<Either<IUserFailure, bool>> isCpfAvailable({
-    required String cpf,
-    String? excludeUserId,
-  });
-
-  /// Obtém o total de usuários cadastrados
-  /// 
-  /// [personType] filtrar por tipo específico (opcional)
-  /// [activeOnly] contar apenas usuários ativos (padrão: true)
-  /// 
-  /// Retorna [Right] com total de usuários ou
-  /// [Left] com erro de consulta
-  Future<Either<IUserFailure, int>> getUsersCount({
-    AccountPersonType? personType,
-    bool activeOnly = true,
-  });
-
-  /// Atualiza as preferências de notificação do usuário
-  /// 
-  /// [userId] identificador do usuário
-  /// [preferences] novas preferências de notificação
-  /// 
-  /// Retorna [Right] com preferências atualizadas ou
-  /// [Left] com erro na atualização
-  Future<Either<IUserFailure, UserNotificationPreferencesEntity>> updateUserNotificationPreferences({
-    required String userId,
-    required UserNotificationPreferencesEntity preferences,
-  });
-
-  /// Obtém usuários criados em um período específico
-  /// 
-  /// [startDate] data inicial do período
-  /// [endDate] data final do período
-  /// [limit] máximo de resultados (opcional)
-  /// 
-  /// Retorna [Right] com lista de usuários ou
-  /// [Left] com erro na consulta
-  Future<Either<IUserFailure, List<UserEntity>>> getUsersByDateRange({
-    required DateTime startDate,
-    required DateTime endDate,
-    int? limit,
-  });
 }
 ```
 
----
+### 🔑 Elementos Essenciais
 
-## 📋 Template para Interfaces Repository
-
-### Estrutura Básica
-
-```dart
-import 'package:base_core/base_core.dart' show Either;
-import '../entities/[entity]_entity.dart';
-import '../failures/i_[entity]_failures.dart';
-
-/// Interface que define o contrato para persistência de dados de [Entity]
-/// 
-/// Esta interface estabelece as operações de acesso aos dados para:
-/// - [operação 1]
-/// - [operação 2]
-/// - [operação N]
-abstract class I[Entity]Repository {
-  /// [Breve descrição da operação de acesso aos dados]
-  /// 
-  /// [param] - descrição do parâmetro (obrigatório/opcional)
-  /// 
-  /// Validações aplicadas:
-  /// - [validação 1]
-  /// - [validação 2]
-  /// 
-  /// Retorna [Right] com [tipo de retorno] ou
-  /// [Left] com:
-  /// - [TipoError] em caso de [condição]
-  /// - [OutroTipoError] em caso de [outra condição]
-  Future<Either<I[Entity]Failure, [ReturnType]>> [methodName]({
-    required [Type] [param],
-    [Type]? [optionalParam],
-  });
-}
-```
-
-### Operações CRUD Padrão
-
-```dart
-abstract class I[Entity]Repository {
-  // CREATE
-  Future<Either<I[Entity]Failure, [Entity]Entity>> create[Entity]({
-    required [Entity]Entity data,
-  });
-
-  // READ
-  Future<Either<I[Entity]Failure, [Entity]Entity>> get[Entity]ById({
-    required String id,
-  });
-
-  Future<Either<I[Entity]Failure, List<[Entity]Entity>>> getAll[Entity]s({
-    int? limit,
-    int? offset,
-  });
-
-  // UPDATE
-  Future<Either<I[Entity]Failure, [Entity]Entity>> update[Entity]({
-    required [Entity]Entity data,
-  });
-
-  // DELETE
-  Future<Either<I[Entity]Failure, [Entity]Entity>> delete[Entity]({
-    required String id,
-  });
-
-  // SEARCH
-  Future<Either<I[Entity]Failure, List<[Entity]Entity>>> search[Entity]s({
-    required String query,
-    int? limit,
-  });
-
-  // COUNT
-  Future<Either<I[Entity]Failure, int>> get[Entity]sCount();
-}
-```
-
-### Convenções de Interface
-
-**Nomenclatura:**
-- Interface: `I[Entity]Repository`
-- Métodos CRUD: `create[Entity]`, `get[Entity]ById`, `update[Entity]`, `delete[Entity]`
-- Métodos de busca: `search[Entity]s`, `get[Entity]sByType`
-- Métodos de contagem: `get[Entity]sCount`
-
-**Documentação Obrigatória:**
-- Descrição geral da interface
-- Propósito de cada operação
-- Parâmetros e sua obrigatoriedade
-- Validações aplicadas no acesso aos dados
-- Mapeamento completo de retornos possíveis
-
-**Padrões de Retorno:**
-- Sempre `Future<Either<IFailure, Success>>`
-- Parâmetros nomeados com `required` quando obrigatórios
-- Consistência nos tipos de erro entre métodos similares
+1. **Classe abstrata** - Define contrato sem implementação
+2. **Either<Failure, Success>** - Tratamento de erros tipado
+3. **Entities** - Trabalha com objetos de negócio puros
+4. **Named parameters** - Parâmetros explícitos e legíveis
+5. **Future** - Operações assíncronas
+6. **Unit** - Retorno quando não há dados (apenas sucesso/falha)
 
 ---
 
-## 📋 Checklist para Interfaces Repository
+## 🎯 Padrões de Métodos
 
-### Checklist de Criação ✅
-
-**Estrutura da Interface:**
-- [ ] Localizada em `lib/src/domain/repositories/`
-- [ ] Nome seguindo padrão `I[Entity]Repository`
-- [ ] Declarada como `abstract class`
-- [ ] Imports apenas de entities e failures do domain
-- [ ] Sem implementação de métodos
-
-**Operações CRUD:**
-- [ ] Método para criação (`create[Entity]`)
-- [ ] Método para leitura por ID (`get[Entity]ById`)
-- [ ] Método para atualização (`update[Entity]`)
-- [ ] Método para exclusão (`delete[Entity]`)
-- [ ] Métodos de listagem com paginação
-
-**Métodos de Consulta:**
-- [ ] Busca textual (`search[Entity]s`)
-- [ ] Filtros por critérios específicos
-- [ ] Contadores (`get[Entity]sCount`)
-- [ ] Validações de unicidade quando aplicável
-
-**Documentação Obrigatória:**
-- [ ] Descrição geral da interface e responsabilidades
-- [ ] Documentação de cada método com propósito claro
-- [ ] Especificação de todos os parâmetros
-- [ ] Listagem de validações aplicadas no acesso aos dados
-- [ ] Mapeamento completo de tipos de erro possíveis
-
-**Padrões de Retorno:**
-- [ ] Sempre `Future<Either<IFailure, Success>>`
-- [ ] Métodos assíncronos para operações de I/O
-- [ ] Consistência nos tipos de erro entre métodos
-- [ ] Parâmetros opcionais com valores padrão quando adequado
-
----
-
-## 🎯 Diretrizes para Interfaces
-
-### ✅ Boas Práticas
+### 1. **Buscar Único (Get/Fetch)**
 
 ```dart
-// ✅ Interface bem documentada com propósito claro
-/// Interface que define o contrato para persistência de dados de produtos
-/// 
-/// Responsável por estabelecer contratos para:
-/// - Operações CRUD completas
-/// - Consultas por categorias e filtros
-/// - Validações de disponibilidade
-abstract class IProductRepository {
-  /// Obtém produto por ID específico
-  /// 
-  /// [id] identificador único do produto
-  /// 
-  /// Retorna [Right] com produto encontrado ou
-  /// [Left] com [ProductNotFoundError] se não existe
-  Future<Either<IProductFailure, ProductEntity>> getProductById({
-    required String id,
-  });
-}
-
-// ✅ Parâmetros bem especificados
-Future<Either<IProductFailure, List<ProductEntity>>> getProductsByCategory({
-  required String categoryId,
-  int limit = 20,
-  int offset = 0,
-  bool activeOnly = true,
+// Buscar por ID
+Future<Either<IUserFailure, UserEntity>> getUserById({
+  required String id,
 });
 
-// ✅ Métodos com propósito único e claro
-Future<Either<IProductFailure, bool>> isProductCodeAvailable({
-  required String code,
-  String? excludeProductId,
+// Buscar usuário logado (sem parâmetros)
+Future<Either<IUserFailure, UserEntity>> getLoggedUser();
+```
+
+**Use para:** Buscar um único recurso.
+
+### 2. **Listar com Filtros (Fetch/List)**
+
+```dart
+// Listar com filtros e paginação
+Future<Either<IUserFailure, UserResultEntity>> fetchUsers({
+  required UserFiltersEntity filters,
 });
 ```
 
-### ❌ Evitar
+**Use para:** Buscar múltiplos recursos com filtros, paginação, ordenação.
+
+### 3. **Criar (Create)**
 
 ```dart
-// ❌ Interface sem documentação
-abstract class IProductRepository {
-  Future<Either<IProductFailure, ProductEntity>> doSomething();
+// Criar novo recurso
+Future<Either<IUserFailure, UserEntity>> createUser({
+  required UserEntity data,
+});
+```
+
+**Use para:** Criar novos recursos. Retorna o recurso criado.
+
+### 4. **Atualizar (Update)**
+
+```dart
+// Atualizar recurso completo
+Future<Either<IUserFailure, UserEntity>> updateUser({
+  required UserEntity data,
+});
+
+// Atualizar por ID específico
+Future<Either<IUserFailure, UserEntity>> updateUserById({
+  required String id,
+  required UserEntity data,
+});
+```
+
+**Use para:** Atualizar recursos existentes. Retorna o recurso atualizado.
+
+### 5. **Deletar (Delete)**
+
+```dart
+// Deletar recurso
+Future<Either<IUserFailure, UserEntity>> deleteUserAccount();
+
+// Deletar por ID
+Future<Either<IUserFailure, Unit>> deleteUserById({
+  required String id,
+});
+```
+
+**Use para:** Remover recursos. Pode retornar Entity ou Unit.
+
+### 6. **Operações Específicas**
+
+```dart
+// Operação específica de negócio
+Future<Either<IUserFailure, Unit>> changeUserPassword({
+  required String id,
+  required String newPassword,
+  required String currentPassword,
+});
+```
+
+**Use para:** Operações específicas que não são CRUD simples.
+
+---
+
+## 🎨 Padrões e Convenções
+
+### ✅ Nomenclatura
+
+| Tipo          | Padrão                         | Exemplo                                 |
+| ------------- | ------------------------------ | --------------------------------------- |
+| **Interface** | `I{Contexto}Repository`        | `IUserRepository`, `IProductRepository` |
+| **Arquivo**   | `i_{contexto}_repository.dart` | `i_user_repository.dart`                |
+| **Métodos**   | `verbo + Substantivo`          | `getUser`, `fetchUsers`, `createUser`   |
+
+### ✅ Estrutura do Arquivo
+
+```dart
+// 1. Imports
+import 'package:base_core/base_core.dart' show Either, Unit;
+import '../entities/user_entity.dart';
+import '../failures/i_user_failures.dart';
+
+// 2. Interface abstrata
+abstract class IUserRepository {
+  // 3. Métodos (agrupados por tipo de operação)
+
+  // GET operations
+  Future<Either<IUserFailure, UserEntity>> getLoggedUser();
+  Future<Either<IUserFailure, UserEntity>> getUserById({required String id});
+
+  // LIST operations
+  Future<Either<IUserFailure, UserResultEntity>> fetchUsers({
+    required UserFiltersEntity filters,
+  });
+
+  // CREATE operations
+  Future<Either<IUserFailure, UserEntity>> createUser({
+    required UserEntity data,
+  });
+
+  // UPDATE operations
+  Future<Either<IUserFailure, UserEntity>> updateUser({
+    required UserEntity data,
+  });
+
+  // DELETE operations
+  Future<Either<IUserFailure, Unit>> deleteUser({required String id});
 }
+```
 
-// ❌ Métodos com múltiplas responsabilidades
-Future<Either<IProductFailure, ProductEntity>> createProductAndNotifyUsers();
+### ✅ Retornos Comuns
 
-// ❌ Retornos inconsistentes
-Future<ProductEntity> getProduct(); // sem Either
-Either<IProductFailure, ProductEntity> getProductSync(); // sem Future
+```dart
+// 1. Retornar Entity única
+Future<Either<IUserFailure, UserEntity>> getUser();
 
-// ❌ Parâmetros posicionais obrigatórios
-Future<Either<IProductFailure, ProductEntity>> updateProduct(ProductEntity data);
+// 2. Retornar lista de Entities
+Future<Either<IUserFailure, List<UserEntity>>> getUsers();
 
-// ❌ Dependências de infraestrutura
-import 'package:dio/dio.dart'; // não deve importar dependências externas
+// 3. Retornar resultado paginado
+Future<Either<IUserFailure, UserResultEntity>> fetchUsers();
+
+// 4. Retornar Unit (sem dados, apenas sucesso/falha)
+Future<Either<IUserFailure, Unit>> deleteUser();
+
+// 5. Retornar bool
+Future<Either<IUserFailure, bool>> checkUserExists();
 ```
 
 ---
 
-## 🚀 Exemplo de Uso da Interface
+## 📋 Checklist de Implementação
+
+Ao criar um Repository Interface:
+
+- [ ] **Nomenclatura** segue padrão (`I{Contexto}Repository`)
+- [ ] **Arquivo nomeado** corretamente (`i_{contexto}_repository.dart`)
+- [ ] **Classe abstrata** (sem implementação)
+- [ ] **Todos os métodos** retornam `Either<Failure, Success>`
+- [ ] **Usa Entities** do domain (não Models)
+- [ ] **Usa Failures** específicos do contexto
+- [ ] **Named parameters** para clareza
+- [ ] **Métodos agrupados** por tipo de operação (GET, LIST, CREATE, UPDATE, DELETE)
+- [ ] **Imports apenas do domain** (entities, failures)
+
+---
+
+## 🚀 Benefícios dos Repository Interfaces
+
+### ✅ Inversão de Dependências (DIP)
 
 ```dart
-// Na camada de infrastructure (implementação)
-class UserRepository extends IUserRepository {
-  UserRepository({required this.datasource});
-  
-  final IUserDatasource datasource;
+// ❌ Domain dependendo de implementação
+class UserUsecase {
+  final UserRepositoryImpl repository;  // Dependência concreta
+}
 
+// ✅ Domain dependendo de abstração
+class UserUsecase {
+  final IUserRepository repository;  // Dependência abstrata
+}
+```
+
+### ✅ Testabilidade
+
+```dart
+// Fácil criar mock para testes
+class MockUserRepository implements IUserRepository {
   @override
   Future<Either<IUserFailure, UserEntity>> getUserById({
     required String id,
   }) async {
-    // Implementação delegando para datasource
-    return datasource.getUserById(id: id);
+    return Right(UserEntity(/* dados de teste */));
   }
+
+  // ... outros métodos
 }
 
-// Na camada de domain (use case)
-class UserUsecase extends IUserUsecase {
-  UserUsecase({required this.repository});
-  
-  final IUserRepository repository; // Dependendo da interface, não da implementação
+// Usar no teste
+final usecase = UserUsecase(MockUserRepository());
+```
 
-  @override
-  Future<Either<IUserFailure, UserEntity>> getUserById({
-    required String id,
-  }) async {
-    // Usando a interface repository
+### ✅ Múltiplas Implementações
+
+```dart
+// Implementação com API
+class UserApiRepository implements IUserRepository { ... }
+
+// Implementação com banco local
+class UserLocalRepository implements IUserRepository { ... }
+
+// Implementação com cache
+class UserCacheRepository implements IUserRepository { ... }
+
+// Trocar implementação sem afetar Domain
+final repository = UserApiRepository();  // ou UserLocalRepository()
+```
+
+### ✅ Abstração da Origem dos Dados
+
+```dart
+// UseCase não sabe de onde vêm os dados
+class GetUserUsecase {
+  final IUserRepository repository;
+
+  Future<Either<IUserFailure, UserEntity>> call(String id) {
+    // Pode ser API, DB local, cache... não importa!
     return repository.getUserById(id: id);
   }
 }
 ```
 
-Esta estrutura garante que as interfaces de repositórios sejam bem definidas e mantenham a separação clara entre as camadas do Clean Architecture, estabelecendo contratos claros para acesso aos dados sem se preocupar com detalhes de implementação.
+---
+
+## 🔗 Próximos Passos
+
+1. **[Definir UseCase Interfaces](./i_usecases.md)** - Contratos de operações de negócio
+2. **[Implementar Repository](../infra/repositories.md)** - Implementação real na Infrastructure
+3. **[Criar DataSource Interfaces](../infra/i_datasources.md)** - Contratos de comunicação externa
+
+---
+
+_Repository Interfaces abstraem o acesso aos dados, permitindo que o Domain permaneça independente de detalhes técnicos._

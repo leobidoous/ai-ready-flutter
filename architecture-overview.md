@@ -1,595 +1,958 @@
-# Responsabilidades por Camadas - Clean Architecture
+# Architecture Overview - Cogna Resale Core
 
 ## 📋 Visão Geral
 
-Este documento define **responsabilidades específicas** de cada camada na Clean Architecture e explica **por que utilizamos abstrações** para manter a separação de responsabilidades e garantir flexibilidade e testabilidade.
-
-### 🎯 Objetivos das Abstrações
-
-- **Inversão de Dependências (DIP)**: Camadas superiores dependem de abstrações, não implementações
-- **Testabilidade**: Facilita criação de mocks e testes unitários isolados
-- **Flexibilidade**: Permite múltiplas implementações sem quebrar contratos
-- **Manutenibilidade**: Mudanças em uma camada não propagam para outras
-- **Princípio Aberto/Fechado (OCP)**: Aberto para extensão, fechado para modificação
-- **Interface Segregation (ISP)**: Interfaces específicas e coesas
-
-### 🔑 Conceitos Fundamentais
-
-> **Interfaces definem O QUE fazer (contratos), Implementações definem COMO fazer (execução)**
-
-**Domain**: Define regras de negócio e contratos (O QUE)
-**Infrastructure**: Implementa coordenação e orquestração (COMO coordenar)  
-**Data**: Executa comunicação externa real (COMO comunicar)
+O **cogna-resale-core** é um pacote Flutter que implementa a **Clean Architecture** com separação rigorosa de responsabilidades em camadas. Este documento descreve a arquitetura completa, princípios SOLID aplicados, fluxo de dependências e padrões utilizados.
 
 ---
 
-## 🏗️ Camadas e Suas Responsabilidades
+## 🏗️ Estrutura de Camadas
 
-### 🎯 Domain Layer (Núcleo do Negócio)
+```
+lib/src/
+├── domain/          # Camada de Domínio (Contratos e Regras de Negócio)
+├── infra/           # Camada de Infraestrutura (Implementações e Coordenação)
+├── data/            # Camada de Dados (Comunicação Externa)
+├── presentation/    # Camada de Apresentação (UI e Estado)
+└── core/            # Utilitários Compartilhados
+```
 
-> **Filosofia**: "O que o sistema deve fazer, não como fazer"
+### Fluxo de Dependências
 
-#### 📋 Responsabilidades
+```
+Presentation → Infrastructure → Data
+     ↓              ↓
+   Domain ← ← ← ← ← ←
+```
 
-**✅ O que a camada Domain FAZ:**
-- Define **regras de negócio puras** através de Entities
-- Estabelece **contratos de operações** através de Interfaces
-- Especifica **tipos de erro de negócio** através de Failures  
-- Define **valores constantes do domínio** através de Enums
-- Especifica **casos de uso que devem existir** através de IUseCases
-- Estabelece **contratos de acesso a dados** através de IRepositories
+**Regra de Ouro:** Todas as camadas dependem do **Domain**, nunca de implementações concretas.
 
-**❌ O que a camada Domain NÃO FAZ:**
-- Não implementa comunicação externa (APIs, DB, cache)
-- Não contém lógica de apresentação, UI ou formatação
-- Não depende de frameworks, bibliotecas ou tecnologias específicas
-- Não implementa protocolos de comunicação (HTTP, gRPC, etc.)
-- Não define detalhes de persistência ou serialização
-- Não contém configurações de ambiente ou infraestrutura
+---
 
-#### 🔍 Por que usar Interfaces no Domain?
+## 📦 Camada de Domínio (Domain)
+
+### Responsabilidades
+
+- Define **O QUE** a aplicação faz (contratos puros)
+- Contém **regras de negócio** fundamentais
+- **Zero dependências** externas (exceto base_core)
+- Totalmente **testável** e **reutilizável**
+
+### Estrutura
+
+```
+domain/
+├── entities/        # Objetos de negócio puros
+├── enums/           # Valores constantes tipados
+├── failures/        # Tipos de erro do domínio
+├── repositories/    # Contratos de acesso a dados
+├── usecases/        # Contratos de operações de negócio
+└── services/        # Contratos de serviços auxiliares
+```
+
+### Entities (Objetos de Negócio)
+
+**Características:**
+
+- Imutáveis (`const` constructors)
+- Campos `final`
+- Método `copyWith` para modificações
+- Sem lógica de serialização (fica nos Models)
+- Composição de outras entities
+
+**Exemplo:**
 
 ```dart
-// ✅ Interface define CONTRATO sem implementação
+class UserEntity {
+  const UserEntity({
+    required this.id,
+    required this.name,
+    required this.email,
+    required this.cpf,
+    required this.birth,
+    required this.status,
+    required this.gender,
+    required this.role,
+    required this.address,
+    required this.company,
+    required this.partnerCompany,
+    required this.notificationPreferences,
+  });
+
+  final String id;
+  final String name;
+  final String email;
+  final String cpf;
+  final DateTime birth;
+  final UserStatus status;
+  final UserGenderType gender;
+  final UserRoleEntity role;
+  final AddressEntity address;
+  final UserCompanyEntity company;
+  final DistributorEntity partnerCompany;
+  final UserNotificationPreferencesEntity notificationPreferences;
+
+  UserEntity copyWith({
+    String? id,
+    String? name,
+    // ... outros campos
+  }) {
+    return UserEntity(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      // ... outros campos
+    );
+  }
+}
+```
+
+### Enums (Valores Constantes)
+
+**Características:**
+
+- Enhanced Enums do Dart
+- Campos `final` com metadados
+- Métodos `toJson` e `fromJson`
+- Exhaustiveness checking (switch expressions)
+
+**Exemplo:**
+
+```dart
+enum SystemType {
+  dc(name: 'Distribuidor Cogna', toJson: 'DC'),
+  ce(name: 'Consultoria Educação', toJson: 'CE'),
+  captarExpress(name: 'Captar Express', toJson: 'CAPTAR_EXPRESS');
+
+  const SystemType({required this.name, required this.toJson});
+
+  final String name;
+  final String toJson;
+
+  static SystemType fromJson(String? type) {
+    return values.firstWhere(
+      (e) => e.toJson == type?.toUpperCase(),
+      orElse: () => SystemType.ce,
+    );
+  }
+}
+```
+
+### Failures (Tipos de Erro)
+
+**Características:**
+
+- Herdam de `ICustomFailure` (base_core)
+- Interface abstrata por contexto
+- Classes concretas para erros específicos
+- Usados com `Either<Failure, Success>`
+
+**Exemplo:**
+
+```dart
+abstract class IUserFailure extends ICustomFailure {
+  IUserFailure({required super.message});
+}
+
+class UserServerError extends IUserFailure {
+  UserServerError({required super.message});
+}
+
+class UserUnknownError extends IUserFailure {
+  UserUnknownError({required super.message});
+}
+
+class UserUnauthenticatedError extends IUserFailure {
+  UserUnauthenticatedError({required super.message});
+}
+```
+
+### Repository Interfaces (Contratos de Acesso a Dados)
+
+**Características:**
+
+- Prefixo `I` (ex: `IUserRepository`)
+- Retornam `Either<Failure, Success>`
+- Trabalham com Entities
+- Abstraem origem dos dados
+
+**Exemplo:**
+
+```dart
 abstract class IUserRepository {
   Future<Either<IUserFailure, UserEntity>> getLoggedUser();
-}
-
-// ❌ Implementação concreta criaria dependência
-class UserRepositoryImpl {
-  // Dependeria de tecnologias específicas
+  Future<Either<IUserFailure, UserResultEntity>> fetchUsers({
+    required UserFiltersEntity filters,
+  });
+  Future<Either<IUserFailure, UserEntity>> getUserById({required String id});
+  Future<Either<IUserFailure, UserEntity>> updateUser({
+    required UserEntity data,
+  });
+  Future<Either<IUserFailure, UserEntity>> createUser({
+    required UserEntity data,
+  });
+  Future<Either<IUserFailure, Unit>> deleteUserById({required String id});
 }
 ```
 
-**Vantagens das Interfaces:**
-1. **Testabilidade**: Facilita criação de mocks
-2. **Flexibilidade**: Múltiplas implementações possíveis
-3. **Desacoplamento**: Domain não conhece infraestrutura
-4. **Princípios SOLID**: Inversão de dependências
+### UseCase Interfaces (Contratos de Operações de Negócio)
+
+**Características:**
+
+- Prefixo `I` (ex: `IUserUsecase`)
+- Representam casos de uso específicos
+- Orquestram Repositories
+- Aplicam validações de negócio
+
+**Exemplo:**
+
+```dart
+abstract class IUserUsecase {
+  Future<Either<IUserFailure, UserEntity>> getLoggedUser();
+  Future<Either<IUserFailure, UserEntity>> getUserById({required String id});
+  Future<Either<IUserFailure, UserEntity>> updateUser({
+    required UserEntity data,
+  });
+  Future<Either<IUserFailure, Unit>> changeUserPassword({
+    required String id,
+    required String newPassword,
+    required String currentPassword,
+  });
+}
+```
 
 ---
 
-### 🔧 Infrastructure Layer (Orquestração)
+## 🔧 Camada de Infraestrutura (Infra)
 
-> **Filosofia**: "Como implementar o que foi definido no Domain"
+### Responsabilidades
 
-#### 📋 Responsabilidades
+- Implementa **COMO** as operações são executadas
+- Coordena transformação de dados
+- Conecta Domain com Data
+- Não conhece detalhes de comunicação externa
 
-**✅ O que a camada Infrastructure FAZ:**
-- **Implementa contratos do Domain** (IUseCases → UseCases, IRepositories → Repositories)
-- **Coordena múltiplas fontes de dados** (cache + API + fallback)
-- **Aplica regras de negócio complexas** orquestrando repositories
-- **Transforma dados externos** (Models ↔ Entities) 
-- **Define contratos de fontes externas** através de IDataSources
-- **Trata erros técnicos** transformando em erros de domínio
-- **Implementa estratégias** de cache, retry, circuit breaker
+### Estrutura
 
-**❌ O que a camada Infrastructure NÃO FAZ:**
-- Não executa comunicação externa direta (fica no Data)
-- Não contém regras de negócio puras (ficam no Domain)
-- Não define contratos de negócio (apenas implementa os existentes)
-- Não contém lógica de apresentação ou formatação de UI
-- Não implementa protocolos específicos (HTTP, SQL, etc.)
+```
+infra/
+├── datasources/     # Interfaces de comunicação externa
+├── drivers/         # Interfaces de bibliotecas externas
+├── models/          # Serialização/Deserialização
+├── repositories/    # Implementações de repositórios
+├── usecases/        # Implementações de casos de uso
+└── services/        # Implementações de serviços
+```
 
-#### 🔍 Por que Abstrações na Infrastructure?
+### DataSource Interfaces
+
+**Características:**
+
+- Prefixo `I` (ex: `IUserDatasource`)
+- Retornam `Either<HttpErrorResponse, HttpDriverResponse>`
+- Trabalham com dados brutos (JSON)
+- Abstraem protocolo de comunicação
+
+**Exemplo:**
 
 ```dart
-// ✅ UseCase implementa interface do Domain
-class UserUsecase extends IUserUsecase {
-  UserUsecase({required this.repository});
-  
-  final IUserRepository repository; // Depende da abstração
-  
+abstract class IUserDatasource {
+  Future<Either<HttpErrorResponse, HttpDriverResponse>> getLoggedUser();
+  Future<Either<HttpErrorResponse, HttpDriverResponse>> getUserById({
+    required String id,
+  });
+  Future<Either<HttpErrorResponse, HttpDriverResponse>> updateUser({
+    required UserEntity data,
+  });
+}
+```
+
+### Models (Serialização)
+
+**Características:**
+
+- Estendem Entities
+- Mixin `EquatableMixin`
+- Métodos `fromMap`, `toMap`, `toCreate`, `toUpdate`
+- Tratam dados nulos e formatação
+
+**Exemplo:**
+
+```dart
+class UserModel extends UserEntity with EquatableMixin {
+  UserModel({
+    required super.id,
+    required super.name,
+    required super.email,
+    // ... outros campos
+  });
+
+  factory UserModel.fromMap(Map<String, dynamic> map) {
+    return UserModel(
+      id: map['id']?.toString() ?? '',
+      name: map['name']?.toString() ?? '',
+      email: map['email']?.toString() ?? '',
+      cpf: map['cpf']?.toString() ?? '',
+      birth: DateFormat.tryParseOrDateNow(map['birthDate']?.toString()),
+      status: UserStatus.fromJson(map['status']?.toString()),
+      gender: UserGenderType.fromJson(map['gender']?.toString()),
+      role: UserRoleModel.fromMap(
+        map['role'] is Map ? map['role'] : {},
+      ),
+      address: AddressModel.fromMap(
+        map['address'] is Map ? map['address'] : {},
+      ),
+      // ... outros campos
+    );
+  }
+
+  factory UserModel.fromEntity(UserEntity entity) {
+    return UserModel(
+      id: entity.id,
+      name: entity.name,
+      // ... outros campos
+    );
+  }
+
+  UserEntity get toEntity => this;
+
+  Map<String, dynamic> get toMap {
+    return {
+      'id': id,
+      'name': name,
+      'email': email,
+      'cpf': cpf.replaceAll(RegExp('[^0-9]'), ''),
+      'birthDate': birth.toIso8601String(),
+      'status': status.toJson,
+      'gender': gender.toJson,
+      // ... outros campos
+    };
+  }
+
+  Map<String, dynamic> get toCreate {
+    return {
+      'name': name,
+      'email': email,
+      'cpf': cpf.trim().replaceAll(RegExp('[^0-9]'), ''),
+      // ... campos necessários para criação
+    };
+  }
+
+  @override
+  List<Object?> get props => [id, name, email, cpf, birth, status, gender];
+
+  @override
+  bool? get stringify => true;
+}
+```
+
+### Repository Implementations
+
+**Características:**
+
+- Implementam interfaces do Domain
+- Coordenam DataSources
+- Transformam dados (Model ↔ Entity)
+- Transformam erros (HTTP → Failure)
+
+**Exemplo:**
+
+```dart
+class UserRepository extends IUserRepository {
+  UserRepository({
+    required this.crashLog,
+    required this.datasource,
+    required this.firebaseAuthService,
+  });
+
+  final CrashLog crashLog;
+  final IUserDatasource datasource;
+  final IFirebaseAuthService firebaseAuthService;
+
   @override
   Future<Either<IUserFailure, UserEntity>> getLoggedUser() {
-    // Implementa regra de negócio usando repository
+    return datasource.getLoggedUser().then((value) {
+      try {
+        return value.fold(
+          (l) => Left(UserServerError(message: l.message)),
+          (r) => Right(UserModel.fromMap(r.data)),
+        );
+      } catch (exception, stackTrace) {
+        crashLog.capture(exception: exception, stackTrace: stackTrace);
+        return Left(UserUnknownError(message: '$exception'));
+      }
+    });
+  }
+
+  @override
+  Future<Either<IUserFailure, UserEntity>> updateUser({
+    required UserEntity data,
+  }) {
+    return datasource.updateUser(data: data).then((value) {
+      try {
+        return value.fold(
+          (l) => Left(UserServerError(message: l.message)),
+          (r) => Right(UserModel.fromMap(r.data)),
+        );
+      } catch (exception, stackTrace) {
+        crashLog.capture(exception: exception, stackTrace: stackTrace);
+        return Left(UserUnknownError(message: '$exception'));
+      }
+    });
+  }
+}
+```
+
+### UseCase Implementations
+
+**Características:**
+
+- Implementam interfaces do Domain
+- Delegam para Repositories
+- Aplicam validações de negócio
+- Orquestram múltiplos repositories quando necessário
+
+**Exemplo:**
+
+```dart
+class UserUsecase extends IUserUsecase {
+  UserUsecase({required this.repository});
+
+  final IUserRepository repository;
+
+  @override
+  Future<Either<IUserFailure, UserEntity>> getLoggedUser() {
     return repository.getLoggedUser();
   }
-}
 
-// ✅ Repository implementa interface e coordena datasources
-class UserRepository extends IUserRepository {
-  UserRepository({required this.datasource});
-  
-  final IUserDatasource datasource; // Depende da abstração
-  
   @override
-  Future<Either<IUserFailure, UserEntity>> getLoggedUser() async {
-    final result = await datasource.getLoggedUser();
-    return result.fold(
-      (error) => Left(UserServerError(error.message)),
-      (response) => Right(UserModel.fromMap(response.data).toEntity),
-    );
+  Future<Either<IUserFailure, UserEntity>> updateUser({
+    required UserEntity data,
+  }) {
+    // Pode adicionar validações aqui antes de chamar o repository
+    return repository.updateUser(data: data);
   }
 }
 ```
 
-**Vantagens:**
-1. **Coordenação**: Orquestra múltiplas fontes de dados
-2. **Transformação**: Converte dados externos para entities
-3. **Tratamento de Erro**: Transforma erros técnicos em erros de domínio
-4. **Cache/Fallback**: Implementa estratégias de dados
-
 ---
 
-### 💾 Data Layer (Comunicação Externa)
+## 📡 Camada de Dados (Data)
 
-> **Filosofia**: "Como se comunicar com o mundo externo"
+### Responsabilidades
 
-#### 📋 Responsabilidades
+- Executa **COMUNICAÇÃO** real com APIs, DB, cache
+- Implementa DataSources
+- Usa Drivers para abstrair bibliotecas externas
+- Não conhece regras de negócio
 
-**✅ O que a camada Data FAZ:**
-- **Implementa comunicação externa real** com APIs, databases, cache
-- **Executa protocolos específicos** (HTTP, GraphQL, SQL, NoSQL, gRPC)
-- **Serializa/Deserializa dados** para formato de transporte/storage
-- **Gerencia conexões** físicas, autenticação e autorização
-- **Implementa estratégias de rede** (retry, timeout, circuit breaker)
-- **Otimiza performance** (connection pooling, batch requests)
-- **Implementa contratos IDataSources** definidos na Infrastructure
+### Estrutura
 
-**❌ O que a camada Data NÃO FAZ:**
-- Não contém regras de negócio ou validações de domínio
-- Não define contratos ou interfaces (apenas implementa)
-- Não transforma dados em Entities (Model → Entity fica na Infra)
-- Não coordena múltiplas operações de negócio
-- Não contém lógica de cache ou fallback (coordenação fica na Infra)
+```
+data/
+├── datasources/     # Implementações de comunicação
+├── drivers/         # Implementações de drivers
+└── interceptors/    # Interceptors HTTP (auth, logging, etc.)
+```
 
-#### 🔍 Por que Abstrações no Data?
+### DataSource Implementations
+
+**Características:**
+
+- Implementam interfaces da Infra
+- Usam `IHttpDriver` para comunicação
+- Transformam Entities em dados para envio
+- Retornam dados brutos (JSON)
+
+**Exemplo:**
 
 ```dart
-// ✅ DataSource implementa interface da Infrastructure
 class UserDatasource extends IUserDatasource {
-  UserDatasource({required this.httpClient});
-  
-  final HttpClient httpClient;
-  
+  UserDatasource({required this.httpDriver});
+
+  final IHttpDriver httpDriver;
+
   @override
   Future<Either<HttpErrorResponse, HttpDriverResponse>> getLoggedUser() async {
-    try {
-      final response = await httpClient.get('/api/users/me');
-      return Right(HttpDriverResponse(data: response.data));
-    } catch (e) {
-      return Left(HttpErrorResponse(message: e.toString()));
-    }
+    return httpDriver
+        .get('/api/v1/user/me')
+        .then((value) => value.fold(HttpErrorResponse.left, Right));
   }
-}
-```
 
----
-
-## 🔄 Fluxo de Dependências
-
-### 📊 Direção das Dependências (SOLID DIP)
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    PRESENTATION                             │
-│                   (Controllers, Pages)                      │
-│                          │ calls                            │
-│                          ▼                                  │
-└─────────────────────────────────────────────────────────────┘
-                             │
-┌─────────────────────────────────────────────────────────────┐
-│                     DOMAIN                                  │
-│                   (Contracts)                               │
-│                                                             │
-│    IUserUsecase ◄─┐  ┌─► IUserRepository ◄─┐                │
-│                   │  │                     │                │
-└───────────────────┼──┼─────────────────────┼────────────────┘
-                    │  │                     │                
-┌───────────────────┼──┼─────────────────────┼────────────────┐
-│                   │  │  INFRASTRUCTURE     │                │
-│                   │  │   (Implementations) │                │
-│                   │  │                     │                │
-│    UserUsecase ───┘  │  UserRepository ────┘                │
-│         │             │         │                           │
-│         │             │         ▼                           │
-│         │             │  IUserDatasource ◄─┐                │
-└─────────┼─────────────┼─────────────────────┼───────────────┘
-          │             │                     │                
-┌─────────┼─────────────┼─────────────────────┼───────────────┐
-│         │             │       DATA          │               │
-│         │             │  (External I/O)     │               │
-│         │             │                     │               │
-│         └─────────────┼──► UserDatasource ──┘               │
-│                       │           │                         │
-│                       └───────────┼─► HTTP/API/DB           │
-└─────────────────────────────────────┼───────────────────────┘
-                                      ▼
-                                External Systems
-```
-
-**🔑 Pontos Chave:**
-- **Setas apontam para abstrações** (interfaces), nunca para implementações
-- **Infrastructure depende do Domain**, nunca o contrário
-- **Data implementa contratos** da Infrastructure, mas não os define
-- **Presentation usa abstrações** do Domain através da Infrastructure
-
-### 🎯 Princípio da Inversão de Dependências
-
-**Antes (Dependência Direta):**
-```dart
-// ❌ UseCase depende de implementação concreta
-class UserUsecase {
-  final UserDatasource datasource; // Dependência direta
-  
-  Future<UserEntity> getUser() {
-    // Violação: UseCase conhece detalhes de implementação
-  }
-}
-```
-
-**Depois (Inversão de Dependências):**
-```dart
-// ✅ UseCase depende de abstração
-class UserUsecase extends IUserUsecase {
-  final IUserRepository repository; // Dependência invertida
-  
-  Future<Either<IUserFailure, UserEntity>> getUser() {
-    // UseCase não conhece implementação
-    return repository.getLoggedUser();
-  }
-}
-```
-
----
-
-## � Benefícios das Abstrações por Camada
-
-### 🎯 Domain Layer - Interfaces
-
-| Benefício | Descrição | Exemplo |
-|-----------|-----------|---------|
-| **Testabilidade** | Facilita criação de mocks | `MockUserRepository implements IUserRepository` |
-| **Flexibilidade** | Múltiplas implementações | `DatabaseUserRepo`, `ApiUserRepo` |
-| **Estabilidade** | Contratos estáveis | Interface não muda com implementação |
-| **Documentação** | Contratos são autodocumentados | Métodos definem "o que" fazer |
-
-### 🔧 Infrastructure Layer - Implementações
-
-| Benefício | Descrição | Exemplo |
-|-----------|-----------|---------|
-| **Coordenação** | Orquestra múltiplas fontes | Cache + API + Fallback |
-| **Transformação** | Adapta dados externos | `UserModel.fromMap().toEntity` |
-| **Tratamento** | Converte erros técnicos | `HttpError` → `UserServerError` |
-| **Estratégia** | Implementa políticas | Retry, Circuit Breaker |
-
-### 💾 Data Layer - Comunicação
-
-| Benefício | Descrição | Exemplo |
-|-----------|-----------|---------|
-| **Especialização** | Foca em protocolo específico | HTTP, GraphQL, gRPC |
-| **Performance** | Otimizações de rede | Connection pooling, cache |
-| **Tecnologia** | Usa bibliotecas específicas | Dio, Retrofit, SQLite |
-| **Protocolo** | Implementa detalhes técnicos | Headers, Auth, Serialização |
-
----
-
-## � Exemplos Práticos de Responsabilidades
-
-### 🎯 Cenário: Buscar Usuário Logado
-
-**1. Domain (IUserUsecase):**
-```dart
-/// Define O QUE deve ser feito
-abstract class IUserUsecase {
-  /// Obtém usuário logado aplicando regras de negócio
-  Future<Either<IUserFailure, UserEntity>> getLoggedUser();
-}
-```
-
-**2. Infrastructure (UserUsecase):**
-```dart
-/// Implementa COMO aplicar regras de negócio
-class UserUsecase extends IUserUsecase {
   @override
-  Future<Either<IUserFailure, UserEntity>> getLoggedUser() async {
-    // 1. Coordena busca nos dados
-    final result = await repository.getLoggedUser();
-    
-    // 2. Aplica regras de negócio
-    return result.fold(
-      (error) => Left(error),
-      (user) {
-        // Regra: usuário deve estar ativo
-        if (!user.isActive) {
-          return Left(UserInactiveError());
-        }
-        return Right(user);
-      },
+  Future<Either<HttpErrorResponse, HttpDriverResponse>> updateUser({
+    required UserEntity data,
+  }) async {
+    final formData = FormData.fromMap(
+      await UserModel.fromEntity(data).toUpdateAsync,
+    );
+    return httpDriver
+        .patch('/api/v1/user/me', data: formData)
+        .then((value) => value.fold(HttpErrorResponse.left, Right));
+  }
+
+  @override
+  Future<Either<HttpErrorResponse, HttpDriverResponse>> createUser({
+    required UserEntity data,
+  }) {
+    return httpDriver
+        .post('/api/v1/user', data: UserModel.fromEntity(data).toCreate)
+        .then((value) => value.fold(HttpErrorResponse.left, Right));
+  }
+}
+```
+
+### Drivers
+
+**Características:**
+
+- Abstraem bibliotecas externas (Dio, SharedPreferences, etc.)
+- Fornecem interface padronizada
+- Isolam dependências externas
+
+**Exemplo:**
+
+```dart
+abstract class IHttpDriver {
+  Future<Either<HttpDriverResponse, HttpDriverResponse>> get(
+    String path, {
+    Map<String, dynamic>? queryParameters,
+    HttpDriverOptions? options,
+  });
+
+  Future<Either<HttpDriverResponse, HttpDriverResponse>> post(
+    String path, {
+    dynamic data,
+    Map<String, dynamic>? queryParameters,
+    HttpDriverOptions? options,
+  });
+
+  Future<Either<HttpDriverResponse, HttpDriverResponse>> patch(
+    String path, {
+    dynamic data,
+    Map<String, dynamic>? queryParameters,
+    HttpDriverOptions? options,
+  });
+
+  Future<Either<HttpDriverResponse, HttpDriverResponse>> delete(
+    String path, {
+    dynamic data,
+    Map<String, dynamic>? queryParameters,
+    HttpDriverOptions? options,
+  });
+}
+```
+
+---
+
+## 🎨 Camada de Apresentação (Presentation)
+
+### Responsabilidades
+
+- Gerencia **ESTADO DA UI**
+- Coordena chamadas aos UseCases
+- Não contém lógica de negócio
+- Reage a mudanças de estado
+
+### Estrutura
+
+```
+presentation/
+├── controllers/     # Gerenciamento de estado
+├── modules/         # Injeção de dependências (Flutter Modular)
+├── pages/           # Telas da aplicação
+├── widgets/         # Componentes reutilizáveis
+├── extensions/      # Extensions do Flutter
+├── mixins/          # Mixins reutilizáveis
+├── router_guards/   # Guards de navegação
+└── services/        # Serviços de UI (tutorial, etc.)
+```
+
+### Controllers
+
+**Características:**
+
+- Estendem `CustomController<Failure, Entity>`
+- Gerenciam estado reativo (ValueNotifier)
+- Método `execute()` para operações assíncronas
+- Estados: initial, loading, success, error
+
+**Exemplo:**
+
+```dart
+class UserController extends CustomController<IUserFailure, UserEntity> {
+  UserController({required this.usecase}) : super(UserModel.fromMap({}));
+
+  final IUserUsecase usecase;
+
+  UserEntity data = UserModel.fromMap({});
+
+  Future<void> getLoggedUser() async {
+    await execute(() => usecase.getLoggedUser());
+  }
+
+  Future<void> updateUser(UserEntity data) async {
+    await execute(() => usecase.updateUser(data: data));
+  }
+}
+```
+
+**Uso na UI:**
+
+```dart
+class UserPage extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final controller = context.watch<UserController>();
+
+    return controller.state.when(
+      initial: () => Text('Carregando...'),
+      loading: () => CircularProgressIndicator(),
+      success: (user) => Text('Olá, ${user.name}'),
+      error: (failure) => Text('Erro: ${failure.message}'),
     );
   }
 }
 ```
 
-**3. Infrastructure (UserRepository):**
+### Modules (Injeção de Dependências)
+
+**Características:**
+
+- Estendem `Module` (Flutter Modular)
+- Registram todas as dependências
+- Configuram rotas e guards
+- Importam outros módulos
+
+**Exemplo:**
+
 ```dart
-/// Implementa COMO coordenar fontes de dados
-class UserRepository extends IUserRepository {
+class UserModule extends Module {
   @override
-  Future<Either<IUserFailure, UserEntity>> getLoggedUser() async {
-    // 1. Tenta cache primeiro
-    final cacheResult = await cacheDatasource.getLoggedUser();
-    if (cacheResult.isRight()) return cacheResult;
-    
-    // 2. Busca na API
-    final apiResult = await apiDatasource.getLoggedUser();
-    
-    // 3. Transforma dados e trata erros
-    return apiResult.fold(
-      (error) => Left(UserServerError(error.message)),
-      (response) {
-        final user = UserModel.fromMap(response.data).toEntity;
-        // 4. Salva no cache para próxima vez
-        cacheDatasource.saveUser(user);
-        return Right(user);
-      },
+  List<Module> get imports => [HttpModule()];
+
+  @override
+  void binds(Injector i) {
+    // DataSources
+    i.add<IUserDatasource>(UserDatasource.new);
+
+    // Repositories
+    i.add<IUserRepository>(UserRepository.new);
+
+    // UseCases
+    i.add<IUserUsecase>(UserUsecase.new);
+
+    // Controllers
+    i.add<UserController>(UserController.new);
+    i.add<UsersController>(UsersController.new);
+  }
+
+  @override
+  void routes(RouteManager r) {
+    r.child(
+      UserRoutes.profile.path,
+      transition: TransitionType.fadeIn,
+      child: (_) => const UserProfilePage(),
+    );
+
+    r.child(
+      UserRoutes.edit.path,
+      transition: TransitionType.fadeIn,
+      child: (_) => const UserEditPage(),
+      guards: [
+        UserRoleTypeRouterGuard(
+          roles: <UserRoleType>[.dcGeneral, .dcCommercial],
+          redirectTo: UserRoutes.profile.completePath,
+        ),
+      ],
     );
   }
 }
 ```
 
-**4. Data (UserDatasource):**
+---
+
+## 🛠️ Camada Core (Utilitários)
+
+### Responsabilidades
+
+- Utilitários compartilhados
+- Constantes da aplicação
+- Validadores e máscaras
+- Formatadores
+- Temas
+
+### Estrutura
+
+```
+core/
+├── constants/       # Constantes da aplicação
+├── formats/         # Formatadores (data, moeda, etc.)
+├── masks/           # Máscaras de input (CPF, telefone, etc.)
+├── themes/          # Temas da aplicação
+├── utils/           # Utilitários gerais
+└── validators/      # Validadores de formulário
+```
+
+---
+
+## 🎯 Princípios SOLID Aplicados
+
+### Single Responsibility Principle (SRP)
+
+- Cada classe tem uma única responsabilidade
+- Controllers apenas gerenciam estado
+- UseCases apenas orquestram lógica de negócio
+- Repositories apenas coordenam acesso a dados
+- DataSources apenas comunicam com APIs
+
+### Open/Closed Principle (OCP)
+
+- Aberto para extensão, fechado para modificação
+- Novas implementações sem alterar interfaces
+- Novos DataSources sem alterar Repositories
+
+### Liskov Substitution Principle (LSP)
+
+- Implementações podem substituir interfaces
+- `UserRepository` substitui `IUserRepository`
+- `UserDatasource` substitui `IUserDatasource`
+
+### Interface Segregation Principle (ISP)
+
+- Interfaces específicas e focadas
+- `IUserRepository` não tem métodos de `IDistributorRepository`
+- Clients não dependem de métodos que não usam
+
+### Dependency Inversion Principle (DIP)
+
+- Camadas dependem de abstrações (interfaces)
+- Domain não conhece implementações
+- Presentation depende de `IUserUsecase`, não de `UserUsecase`
+
+---
+
+## 📊 Fluxo Completo de Dados
+
+### Fluxo de Leitura (GET)
+
+```
+1. UI (Widget)
+   ↓ chama método
+2. Controller
+   ↓ execute(() => usecase.method())
+3. UseCase
+   ↓ repository.method()
+4. Repository
+   ↓ datasource.method()
+5. DataSource
+   ↓ httpDriver.get()
+6. Driver (Dio)
+   ↓ HTTP GET
+7. API
+   ↓ JSON response
+8. Driver
+   ↓ HttpDriverResponse
+9. DataSource
+   ↓ Either<HttpError, HttpResponse>
+10. Repository
+    ↓ transforma em Either<Failure, Entity>
+11. UseCase
+    ↓ Either<Failure, Entity>
+12. Controller
+    ↓ atualiza state
+13. UI
+    ↓ reage ao state (success/error)
+```
+
+### Fluxo de Escrita (POST/PATCH)
+
+```
+1. UI (Widget)
+   ↓ chama método com Entity
+2. Controller
+   ↓ execute(() => usecase.method(entity))
+3. UseCase
+   ↓ repository.method(entity)
+4. Repository
+   ↓ datasource.method(entity)
+5. DataSource
+   ↓ Model.fromEntity(entity).toCreate
+   ↓ httpDriver.post(data: map)
+6. Driver (Dio)
+   ↓ HTTP POST com JSON
+7. API
+   ↓ JSON response
+8. Driver
+   ↓ HttpDriverResponse
+9. DataSource
+   ↓ Either<HttpError, HttpResponse>
+10. Repository
+    ↓ Model.fromMap(response.data)
+    ↓ Either<Failure, Entity>
+11. UseCase
+    ↓ Either<Failure, Entity>
+12. Controller
+    ↓ atualiza state
+13. UI
+    ↓ reage ao state (success/error)
+```
+
+---
+
+## 🧪 Testabilidade
+
+### Vantagens da Arquitetura
+
+1. **Isolamento de Camadas**
+   - Cada camada pode ser testada independentemente
+   - Mocks fáceis de criar (interfaces)
+
+2. **Injeção de Dependências**
+   - Substituir implementações por mocks
+   - Testar comportamento sem dependências externas
+
+3. **Either Pattern**
+   - Tratamento explícito de erros
+   - Testes de casos de sucesso e falha
+
+### Exemplo de Teste
+
 ```dart
-/// Implementa COMO se comunicar com fontes externas
-class UserDatasource extends IUserDatasource {
+// Mock do Repository
+class MockUserRepository implements IUserRepository {
   @override
-  Future<Either<HttpErrorResponse, HttpDriverResponse>> getLoggedUser() async {
-    try {
-      // Comunicação real com API
-      final response = await httpClient.get(
-        '/api/users/me',
-        headers: {'Authorization': 'Bearer $token'},
-      );
-      
-      return Right(HttpDriverResponse(data: response.data));
-    } on DioException catch (e) {
-      return Left(HttpErrorResponse(
-        message: e.message ?? 'Erro de conexão',
-        statusCode: e.response?.statusCode,
-      ));
-    }
+  Future<Either<IUserFailure, UserEntity>> getLoggedUser() async {
+    return Right(UserEntity(/* dados de teste */));
   }
 }
+
+// Teste do UseCase
+test('should return user when repository succeeds', () async {
+  // Arrange
+  final repository = MockUserRepository();
+  final usecase = UserUsecase(repository: repository);
+
+  // Act
+  final result = await usecase.getLoggedUser();
+
+  // Assert
+  expect(result.isRight(), true);
+  expect(result.getRight().toNullable()?.name, 'Test User');
+});
 ```
 
 ---
 
-## 📋 Checklist de Responsabilidades
+## 📝 Convenções de Nomenclatura
 
-### ✅ Domain Layer
-- [ ] Define apenas **CONTRATOS** (interfaces)
-- [ ] Contém **regras de negócio puras**
-- [ ] **Não depende** de tecnologias externas
-- [ ] Entities com **validações básicas**
-- [ ] Failures **específicos do domínio**
+### Interfaces
 
-### ✅ Infrastructure Layer  
-- [ ] **Implementa** contratos do Domain
-- [ ] **Coordena** múltiplas fontes de dados
-- [ ] **Transforma** dados externos em entities
-- [ ] **Aplica** regras de negócio complexas
-- [ ] **Trata** erros técnicos → erros de domínio
+- Prefixo `I` para todas as interfaces
+- Exemplos: `IUserRepository`, `IUserUsecase`, `IUserFailure`
 
-### ✅ Data Layer
-- [ ] **Implementa** comunicação real externa
-- [ ] **Executa** protocolos específicos
-- [ ] **Serializa/Deserializa** dados
-- [ ] **Gerencia** conexões e autenticação
-- [ ] **Otimiza** performance de rede
+### Implementações
 
----
+- Sem prefixo, nome descritivo
+- Exemplos: `UserRepository`, `UserUsecase`, `UserServerError`
 
-## 🎯 Resumo dos Benefícios
+### Models
 
-### ✅ Testabilidade
-- **Mocks fáceis**: Interfaces permitem criar implementações falsas
-- **Testes isolados**: Cada camada pode ser testada independentemente
-- **TDD natural**: Interfaces primeiro, implementação depois
+- Sufixo `Model`
+- Exemplo: `UserModel`, `UserResultModel`
 
-### ✅ Manutenibilidade
-- **Mudanças localizadas**: Alterações afetam apenas uma camada
-- **Código limpo**: Responsabilidades bem definidas
-- **Documentação viva**: Interfaces servem como contratos
+### Entities
 
-### ✅ Escalabilidade
-- **Múltiplas implementações**: Interface única, várias implementações
-- **Plugins facilmente**: Trocar datasources sem afetar lógica
-- **Features independentes**: Cada use case é isolado
+- Sufixo `Entity`
+- Exemplo: `UserEntity`, `AddressEntity`
 
-### ✅ Flexibilidade
-- **Adaptação rápida**: Mudanças de requisitos localizadas
-- **Tecnologias intercambiáveis**: Database, HTTP client, cache
-- **Ambientes diferentes**: Dev, staging, prod com implementações distintas
+### Controllers
+
+- Sufixo `Controller`
+- Exemplo: `UserController`, `UsersController`
+
+### Enums
+
+- Sufixo `Type` ou `Status`
+- Exemplo: `SystemType`, `UserStatus`, `UserGenderType`
 
 ---
 
-*Esta documentação serve como guia definitivo para entender e implementar corretamente a Clean Architecture, garantindo código maintível, testável e escalável.*
-          .patch('/api/v1/users/${data.id}', data: model.toMap)
-          .then((value) => value.fold(HttpErrorResponse.left, Right));
-    } catch (exception) {
-      return Left(HttpErrorResponse.unknown(message: '$exception'));
-    }
-  }
-}
-```
+## 🔗 Padrões Utilizados
+
+### Either Pattern
+
+- Representa operações que podem falhar
+- `Left`: Erro (Failure)
+- `Right`: Sucesso (Data)
+- Força tratamento explícito de erros
+
+### Repository Pattern
+
+- Abstrai acesso a dados
+- Isola lógica de negócio de detalhes de implementação
+
+### UseCase Pattern
+
+- Encapsula operações de negócio
+- Um UseCase = Uma operação específica
+
+### Dependency Injection
+
+- Injeção via construtor
+- Facilita testes e desacoplamento
+- Flutter Modular para DI
+
+### ValueNotifier Pattern
+
+- Estado reativo na UI
+- CustomController gerencia estados
+- UI reage automaticamente a mudanças
 
 ---
 
-## ✅ Checklist de Implementação por Feature
+## 🚀 Benefícios da Arquitetura
 
-### 📋 Implementação Completa de uma Feature
+### Manutenibilidade
 
-#### 1. **Domain Layer** (Contratos e Regras)
-- [ ] **Entity** criada com validações e regras de negócio
-- [ ] **UseCase Interface** definida com contratos claros
-- [ ] **Repository Interface** definida para acesso aos dados
-- [ ] **Failures** específicos criados para erros de domínio
-- [ ] **Enums** necessários definidos para tipagem forte
+- Código organizado e previsível
+- Mudanças isoladas em camadas específicas
+- Fácil localizar e corrigir bugs
 
-#### 2. **Infrastructure Layer** (Coordenação)
-- [ ] **Model** implementado (extends Entity + serialização)
-- [ ] **UseCase Implementation** criada (orquestração + validações)
-- [ ] **Repository Implementation** criada (coordenação + cache)
-- [ ] **DataSource Interface** definida para comunicação externa
+### Escalabilidade
 
-#### 3. **Data Layer** (Comunicação Externa)
-- [ ] **DataSource Remote** implementado (APIs, HTTP calls)
-- [ ] **DataSource Local** implementado (se necessário)
-- [ ] **Error Handling** completo com Either pattern
-- [ ] **Timeouts e Retry** configurados
+- Adicionar novos módulos sem afetar existentes
+- Reutilização de código entre projetos
+- Crescimento sustentável do projeto
 
-#### 4. **Presentation Layer** (UI)
-- [ ] **Controller/Cubit** implementado
-- [ ] **Page/Widget** criado
-- [ ] **Error Handling** na UI
-- [ ] **Loading/Success/Error States** implementados
+### Testabilidade
 
----
+- Cada camada testável independentemente
+- Mocks fáceis de criar
+- Cobertura de testes alta
 
-## 🚀 Benefícios da Clean Architecture
+### Flexibilidade
 
-### ✅ Vantagens Técnicas
+- Trocar implementações sem afetar outras camadas
+- Migrar de Dio para http sem afetar Domain
+- Adicionar novos DataSources facilmente
 
-1. **Testabilidade Máxima**: Cada camada testada isoladamente com mocks
-2. **Manutenibilidade**: Mudanças localizadas, sem efeito dominó
-3. **Escalabilidade**: Novas features seguem padrão estabelecido
-4. **Flexibilidade**: Troca de tecnologias sem afetar regras de negócio
-5. **Reutilização**: Entities e UseCases reutilizáveis
-6. **SOLID Compliance**: Princípios rigorosamente aplicados
+### Colaboração
 
-### ✅ Vantagens de Negócio
-
-1. **Time-to-Market**: Desenvolvimento paralelo em teams
-2. **Qualidade**: Menos bugs com testes automatizados
-3. **Evolução**: Fácil adaptar a mudanças de requisitos
-4. **Múltiplas Plataformas**: Core compartilhado entre apps
-5. **Manutenção**: Custo reduzido de manutenção a longo prazo
-
-### 🎯 Casos de Uso Ideais
-
-- **Aplicações complexas** com regras de negócio elaboradas
-- **Teams distribuídos** que trabalham em paralelo
-- **Projetos de longo prazo** com evolução constante
-- **Múltiplas plataformas** (mobile, web, desktop)
-- **Diferentes fontes de dados** (REST, GraphQL, cache, local)
-- **Ambientes variados** (dev, staging, production)
+- Estrutura clara para novos desenvolvedores
+- Padrões consistentes em todo o projeto
+- Documentação viva (código auto-explicativo)
 
 ---
 
-## 🔗 Navegação da Documentação
+## 📚 Próximos Passos
 
-### 📚 Documentações por Camada
+Para entender melhor cada camada, consulte a documentação específica:
 
-#### 🎯 Domain (Contratos e Regras)
-- **[📖 UseCase Interfaces](./domain/i_usecases.md)** - Contratos de operações de negócio
-- **[📖 Repository Interfaces](./domain/i_repositories.md)** - Contratos de acesso aos dados
-- **[📖 Entities](./domain/entities.md)** - Objetos de negócio com validações
-- **[📖 Enums](./domain/enums.md)** - Valores constantes e tipagem forte
-- **[📖 Failures](./domain/failures.md)** - Tipos de erro específicos
-
-#### 🔧 Infrastructure (Coordenação)
-- **[📖 UseCase Implementations](./infra/implementations/usecases.md)** - Implementação de orquestração
-- **[📖 Repository Implementations](./infra/implementations/repositories.md)** - Coordenação de dados
-- **[📖 DataSource Interfaces](./infra/i_datasources.md)** - Contratos de comunicação
-- **[📖 Models](./infra/models.md)** - Adaptadores de dados
-
-#### 💾 Data (Comunicação Externa)
-- **[📖 DataSource Implementations](./data/datasources.md)** - Comunicação real com APIs/DB
-
-#### 🎨 Presentation (Interface e Estado)
-- **[📖 Controllers](./presentation/controllers.md)** - Gerenciamento de estado reativo
-
-### 🎨 Documentações Auxiliares
-- **[📖 Naming Conventions](./conventions/naming.md)** - Padrões de nomenclatura
-- **[📖 Code Style Guide](./conventions/code-style.md)** - Estilo de código
-- **[📖 Error Handling](./conventions/error-handling.md)** - Tratamento de erros
-- **[📖 Testing Strategy](./testing/unit-tests.md)** - Estratégias de teste
-## � Guia de Implementação Prática
-
-### 🚀 Começando uma Nova Feature
-
-1. **📋 Defina no Domain**
-   - Crie a Entity com regras de negócio
-   - Defina IUseCase com operações necessárias
-   - Crie IRepository para acesso aos dados
-   - Defina Failures específicos
-
-2. **🔧 Implemente na Infrastructure**
-   - Crie Model (extends Entity + serialização)
-   - Implemente UseCase (orquestração + validações)
-   - Implemente Repository (coordenação)
-   - Defina IDataSource para comunicação
-
-3. **💾 Execute na Data**
-   - Implemente DataSource (comunicação real)
-   - Configure tratamento de erros
-   - Implemente timeouts e retry
-
-4. **🎨 Conecte na Presentation**
-   - Use IUseCase nas controllers
-   - Implemente estados na UI
-   - Trate erros adequadamente
-
-### 🔧 Refatorando Código Existente
-
-1. **📊 Analise dependências** atuais
-2. **🎯 Extraia Entities** do código existente
-3. **🔍 Identifique regras de negócio** e isole em UseCases
-4. **📡 Separe comunicação externa** em DataSources
-5. **🧪 Adicione testes** para cada camada
-6. **🔄 Migre gradualmente** mantendo funcionalidade
+1. **[Domain Layer](./domain/)** - Entities, Enums, Failures, Repositories, UseCases
+2. **[Infrastructure Layer](./infra/)** - Models, Repositories, UseCases, DataSources
+3. **[Data Layer](./data/)** - DataSources, Drivers
+4. **[Presentation Layer](./presentation/)** - Controllers, Modules, Pages, Widgets
 
 ---
 
-## 🎯 Resumo dos Benefícios por Princípio SOLID
-
-### ✅ **Single Responsibility Principle (SRP)**
-- **Entity**: Apenas dados e validações de negócio
-- **UseCase**: Apenas uma operação de negócio específica
-- **Repository**: Apenas coordenação de acesso aos dados
-- **DataSource**: Apenas comunicação com uma fonte externa
-
-### ✅ **Open/Closed Principle (OCP)**
-- **Interfaces estáveis**: Novos recursos via implementações
-- **Extensibilidade**: Novas implementações sem modificar existentes
-- **Evolução segura**: Mudanças não quebram código existente
-
-### ✅ **Liskov Substitution Principle (LSP)**
-- **Implementações intercambiáveis**: Qualquer implementação funciona
-- **Contratos respeitados**: Interfaces garantem comportamento
-- **Testes consistentes**: Mocks e implementações reais equivalentes
-
-### ✅ **Interface Segregation Principle (ISP)**
-- **Interfaces coesas**: Apenas métodos relacionados
-- **Dependências mínimas**: Clients dependem só do necessário
-- **Evolução independente**: Interfaces mudam independentemente
-
-### ✅ **Dependency Inversion Principle (DIP)**
-- **Abstrações estáveis**: Dependência de interfaces, não implementações
-- **Inversão completa**: Camadas altas não conhecem baixas
-- **Flexibilidade máxima**: Fácil trocar implementações
-
----
-
-*Esta documentação serve como **guia definitivo** para entender e implementar Clean Architecture com princípios SOLID, garantindo código **maintível**, **testável** e **escalável** em projetos Dart/Flutter.*
+_Esta arquitetura garante código limpo, testável e escalável, seguindo os princípios SOLID e as melhores práticas da Clean Architecture._

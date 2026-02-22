@@ -1,373 +1,312 @@
-# Domain Failures - Clean Architecture
+# Failure Interfaces - Domain Layer
 
-## 📚 Visão Geral
+## 📋 O que são Failures?
 
-Os **Failures** na camada de **Domain** definem **QUE TIPOS** de erros podem ocorrer nas operações de negócio. Eles representam **falhas específicas do domínio**, permitindo tratamento granular de erros através do Either pattern.
+**Failures** são tipos de erro específicos do domínio que representam falhas de negócio. Eles são usados com o **Either pattern** para tratamento de erros tipado e seguro, substituindo exceções por valores retornáveis.
 
-### 🎯 Princípios Fundamentais dos Failures
+### 🎯 Responsabilidades
 
-**O QUE os Failures DEFINEM:**
-- ✅ **Tipos de Erro Específicos**: Classificação clara de falhas de negócio
-- ✅ **Herança de ICustomFailure**: Base comum para todos os failures
-- ✅ **Mensagens Descritivas**: Informação clara sobre o que falhou
-- ✅ **Granularidade de Erros**: Diferentes tipos para diferentes cenários
-- ✅ **Tratamento Específico**: Permite diferentes ações para cada tipo de erro
+**✅ O que Failures FAZEM:**
 
-**O QUE os Failures NÃO FAZEM:**
-- ❌ **Não contêm lógica de tratamento**: Apenas definem tipos de erro
-- ❌ **Não dependem de infraestrutura**: Zero dependências externas
-- ❌ **Não especificam soluções**: Apenas identificam o problema
-- ❌ **Não contêm dados técnicos**: Apenas informações de negócio
-- ❌ **Não quebram SOLID**: Seguem princípios de responsabilidade única
+- Representam **erros específicos do domínio** (UserNotFound, ServerError, etc.)
+- Fornecem **mensagens descritivas** sobre o erro
+- Permitem **tratamento tipado** de erros via Either pattern
+- Agrupam erros relacionados por **contexto** (User, Distributor, App, etc.)
+- Herdam de **ICustomFailure** para padronização
 
-### 🏗️ Localização e Estrutura
+**❌ O que Failures NÃO FAZEM:**
 
-```
-lib/src/domain/failures/
-├── i_app_failures.dart
-├── i_user_failures.dart
-├── i_product_failures.dart
-└── i_order_failures.dart
-```
+- Não são exceções (não usam throw/catch)
+- Não contêm lógica de negócio
+- Não fazem comunicação com APIs
+- Não dependem de frameworks externos
 
 ---
 
-## 🔍 Anatomia de um Failure
+## 🏗️ Estrutura de Failures
 
-### Estrutura Base
+### Padrão: Interface Base + Implementações Específicas
+
+Cada contexto (User, Distributor, App) tem:
+
+1. **Interface abstrata** - Agrupa todos os erros do contexto
+2. **Classes concretas** - Erros específicos que podem ocorrer
 
 ```dart
 import 'package:base_core/base_core.dart' show ICustomFailure;
 
-/// Interface base para falhas relacionadas a [Entity]
-/// 
-/// Define o contrato comum para todos os tipos de erro que podem
-/// ocorrer em operações relacionadas a [Entity].
-abstract class I[Entity]Failure extends ICustomFailure {
-  I[Entity]Failure({required super.message});
-}
-
-/// Implementações específicas de cada tipo de erro
-class [Entity]ValidationError extends I[Entity]Failure {
-  [Entity]ValidationError({required super.message});
-}
-
-class [Entity]NotFoundError extends I[Entity]Failure {
-  [Entity]NotFoundError({required super.message});
-}
-
-class [Entity]ServerError extends I[Entity]Failure {
-  [Entity]ServerError({required super.message});
-}
-```
-
-### Elementos Essenciais
-
-1. **Herança de ICustomFailure**: Base comum do framework
-2. **Interface Abstrata**: Tipo base para agrupamento
-3. **Classes Concretas**: Tipos específicos de erro
-4. **Mensagem Obrigatória**: Sempre requer mensagem descritiva
-5. **Nomes Descritivos**: Indicam claramente o tipo de falha
-
----
-
-## 📚 Exemplo Prático: IUserFailure
-
-### Implementação Real
-
-```dart
-import 'package:base_core/base_core.dart' show ICustomFailure;
-
-/// Interface base para falhas relacionadas a operações de usuário
-/// 
-/// Define o contrato comum para todos os tipos de erro que podem
-/// ocorrer em operações de usuário (autenticação, perfil, etc.).
+// 1. Interface base do contexto
 abstract class IUserFailure extends ICustomFailure {
   IUserFailure({required super.message});
 }
 
-/// Erro ao atualizar dados do usuário
-/// 
-/// Ocorre quando:
-/// - Dados de entrada são inválidos
-/// - Violação de regras de negócio na atualização
-/// - Conflitos de unicidade (email, CPF)
-class UpdateUserDataError extends IUserFailure {
-  UpdateUserDataError({required super.message});
-}
-
-/// Erro de comunicação com servidor
-/// 
-/// Ocorre quando:
-/// - Falha na comunicação com API
-/// - Timeout de requisição
-/// - Erro HTTP 5xx do servidor
+// 2. Erros específicos
 class UserServerError extends IUserFailure {
   UserServerError({required super.message});
 }
 
-/// Erro desconhecido/inesperado
-/// 
-/// Ocorre quando:
-/// - Exception não mapeada
-/// - Erro inesperado de sistema
-/// - Fallback para erros não categorizados
 class UserUnknownError extends IUserFailure {
   UserUnknownError({required super.message});
 }
 
-/// Erro de autenticação
-/// 
-/// Ocorre quando:
-/// - Token de acesso inválido ou expirado
-/// - Credenciais incorretas
-/// - Sessão não encontrada
 class UserUnauthenticatedError extends IUserFailure {
   UserUnauthenticatedError({required super.message});
 }
-```
 
-### Padrão de Uso no Either
-
-```dart
-// Nos Use Cases e Repositories
-Future<Either<IUserFailure, UserEntity>> getUser() async {
-  try {
-    // Lógica de busca
-    return Right(user);
-  } on ValidationException catch (e) {
-    return Left(UpdateUserDataError(message: e.message));
-  } on NetworkException catch (e) {
-    return Left(UserServerError(message: 'Erro de conexão: ${e.message}'));
-  } on AuthException catch (e) {
-    return Left(UserUnauthenticatedError(message: e.message));
-  } catch (e) {
-    return Left(UserUnknownError(message: 'Erro inesperado: $e'));
-  }
+class UpdateUserDataError extends IUserFailure {
+  UpdateUserDataError({required super.message});
 }
 
-// No tratamento da UI
-result.fold(
-  (failure) {
-    switch (failure.runtimeType) {
-      case UpdateUserDataError:
-        showValidationErrors();
-        break;
-      case UserServerError:
-        showNetworkError();
-        break;
-      case UserUnauthenticatedError:
-        redirectToLogin();
-        break;
-      default:
-        showGenericError();
-    }
-  },
-  (user) => showUserData(user),
-);
+class UserNotFoundError extends IUserFailure {
+  UserNotFoundError({required super.message});
+}
 ```
+
+### 🔑 Elementos Essenciais
+
+1. **Interface abstrata** - Agrupa erros relacionados (`IUserFailure`, `IDistributorFailure`)
+2. **Herança de ICustomFailure** - Padronização via base_core
+3. **Campo `message`** - Mensagem descritiva do erro
+4. **Classes concretas** - Erros específicos que podem ocorrer
+5. **Nomenclatura clara** - Nome do erro descreve o problema
 
 ---
 
-## 📋 Template para Failures
+## 🎨 Padrões e Convenções
 
-### Estrutura Básica
+### ✅ Nomenclatura
+
+| Tipo                | Padrão                       | Exemplo                                  |
+| ------------------- | ---------------------------- | ---------------------------------------- |
+| **Interface**       | `I{Contexto}Failure`         | `IUserFailure`, `IDistributorFailure`    |
+| **Arquivo**         | `i_{contexto}_failures.dart` | `i_user_failures.dart`                   |
+| **Classe concreta** | `{Contexto}{Tipo}Error`      | `UserServerError`, `UpdateUserDataError` |
+
+### ✅ Estrutura do Arquivo
 
 ```dart
+// 1. Import do ICustomFailure
 import 'package:base_core/base_core.dart' show ICustomFailure;
 
-/// Interface base para falhas relacionadas a [Entity]
-/// 
-/// Define o contrato comum para todos os tipos de erro que podem
-/// ocorrer em operações relacionadas a [Entity].
-abstract class I[Entity]Failure extends ICustomFailure {
-  I[Entity]Failure({required super.message});
-}
-
-/// [Breve descrição do tipo de erro]
-/// 
-/// Ocorre quando:
-/// - [cenário 1]
-/// - [cenário 2] 
-/// - [cenário N]
-class [Entity][TipoErro]Error extends I[Entity]Failure {
-  [Entity][TipoErro]Error({required super.message});
-}
-```
-
-### Tipos Comuns de Failures
-
-**Erros de Validação:**
-```dart
-class [Entity]ValidationError extends I[Entity]Failure {
-  [Entity]ValidationError({required super.message});
-}
-```
-
-**Erros de Não Encontrado:**
-```dart
-class [Entity]NotFoundError extends I[Entity]Failure {
-  [Entity]NotFoundError({required super.message});
-}
-```
-
-**Erros de Servidor/Rede:**
-```dart
-class [Entity]ServerError extends I[Entity]Failure {
-  [Entity]ServerError({required super.message});
-}
-```
-
-**Erros de Autorização:**
-```dart
-class [Entity]UnauthorizedError extends I[Entity]Failure {
-  [Entity]UnauthorizedError({required super.message});
-}
-```
-
-**Erros de Conflito:**
-```dart
-class [Entity]ConflictError extends I[Entity]Failure {
-  [Entity]ConflictError({required super.message});
-}
-```
-
-**Erros de Regra de Negócio:**
-```dart
-class [Entity]BusinessRuleError extends I[Entity]Failure {
-  [Entity]BusinessRuleError({required super.message});
-}
-```
-
-**Erros Desconhecidos:**
-```dart
-class [Entity]UnknownError extends I[Entity]Failure {
-  [Entity]UnknownError({required super.message});
-}
-```
-
----
-
-## 🎯 Diretrizes para Failures
-
-### ✅ Boas Práticas
-
-```dart
-// ✅ Interface específica por entidade
+// 2. Interface abstrata do contexto
 abstract class IUserFailure extends ICustomFailure {
   IUserFailure({required super.message});
 }
 
-// ✅ Nomes descritivos e específicos
-class UserEmailAlreadyExistsError extends IUserFailure {
-  UserEmailAlreadyExistsError({required super.message});
+// 3. Erros específicos (agrupados por tipo)
+// Erros de servidor
+class UserServerError extends IUserFailure {
+  UserServerError({required super.message});
 }
 
-// ✅ Documentação clara dos cenários
-/// Erro quando usuário tenta atualizar para email já existente
-/// 
-/// Ocorre quando:
-/// - Email fornecido já está em uso por outro usuário
-/// - Violação de constraint de unicidade no banco
-class UserEmailConflictError extends IUserFailure {
-  UserEmailConflictError({required super.message});
+// Erros de autenticação
+class UserUnauthenticatedError extends IUserFailure {
+  UserUnauthenticatedError({required super.message});
 }
 
-// ✅ Mensagens informativas
-UserServerError(message: 'Falha na comunicação com servidor: timeout após 30s');
+// Erros de operação
+class UpdateUserDataError extends IUserFailure {
+  UpdateUserDataError({required super.message});
+}
+
+class UserNotFoundError extends IUserFailure {
+  UserNotFoundError({required super.message});
+}
 ```
 
-### ❌ Evitar
+### ✅ Tipos Comuns de Failures
 
 ```dart
-// ❌ Failures genéricos demais
-class GeneralError extends ICustomFailure {
-  GeneralError({required super.message});
+// 1. ServerError - Erros de servidor (500, 502, 503)
+class UserServerError extends IUserFailure {
+  UserServerError({required super.message});
 }
 
-// ❌ Nomes não descritivos
-class UserError1 extends IUserFailure {
-  UserError1({required super.message});
+// 2. UnknownError - Erros inesperados/desconhecidos
+class UserUnknownError extends IUserFailure {
+  UserUnknownError({required super.message});
 }
 
-// ❌ Failures sem documentação
-class UserSomethingWentWrongError extends IUserFailure {
-  UserSomethingWentWrongError({required super.message});
+// 3. UnauthenticatedError - Erros de autenticação (401, 403)
+class UserUnauthenticatedError extends IUserFailure {
+  UserUnauthenticatedError({required super.message});
 }
 
-// ❌ Mensagens vagas
-UserUnknownError(message: 'Erro');
+// 4. NotFoundError - Recurso não encontrado (404)
+class UserNotFoundError extends IUserFailure {
+  UserNotFoundError({required super.message});
+}
+
+// 5. ValidationError - Erros de validação de dados
+class UserValidationError extends IUserFailure {
+  UserValidationError({required super.message});
+}
+
+// 6. Erros específicos de operação
+class UpdateUserDataError extends IUserFailure {
+  UpdateUserDataError({required super.message});
+}
+
+class DeleteUserError extends IUserFailure {
+  DeleteUserError({required super.message});
+}
 ```
 
 ---
 
-## 📋 Checklist para Failures
+## 🎯 Como Usar Failures
 
-### Checklist de Criação ✅
+### Em Repository Interfaces
 
-**Estrutura Base:**
-- [ ] Localizado em `lib/src/domain/failures/`
-- [ ] Nome seguindo padrão `i_[entity]_failures.dart`
-- [ ] Interface abstrata `I[Entity]Failure extends ICustomFailure`
-- [ ] Apenas import de `ICustomFailure` do base_core
+```dart
+import 'package:fpdart/fpdart.dart';
+import '../entities/user_entity.dart';
+import '../failures/i_user_failures.dart';
 
-**Tipos de Failure:**
-- [ ] Failure para validação (`[Entity]ValidationError`)
-- [ ] Failure para não encontrado (`[Entity]NotFoundError`) 
-- [ ] Failure para servidor (`[Entity]ServerError`)
-- [ ] Failure para autorização (`[Entity]UnauthorizedError`)
-- [ ] Failure para conflitos (`[Entity]ConflictError`)
-- [ ] Failure para erros desconhecidos (`[Entity]UnknownError`)
+abstract class IUserRepository {
+  // Either<Failure, Success>
+  Future<Either<IUserFailure, UserEntity>> getUserById(String id);
+  Future<Either<IUserFailure, UserEntity>> updateUser(UserEntity user);
+  Future<Either<IUserFailure, List<UserEntity>>> getAllUsers();
+}
+```
 
-**Documentação:**
-- [ ] Descrição clara da interface base
-- [ ] Documentação de cada tipo de failure
-- [ ] Cenários onde cada failure ocorre
-- [ ] Exemplos de mensagens apropriadas
+### Em UseCase Interfaces
 
-**Padrões:**
-- [ ] Construtor obrigatório com mensagem
-- [ ] Herança correta de `I[Entity]Failure`
-- [ ] Nomes descritivos e específicos
-- [ ] Sem lógica adicional, apenas definição
+```dart
+import 'package:fpdart/fpdart.dart';
+import '../entities/user_entity.dart';
+import '../failures/i_user_failures.dart';
+
+abstract class IGetUserUsecase {
+  Future<Either<IUserFailure, UserEntity>> call(String id);
+}
+
+abstract class IUpdateUserUsecase {
+  Future<Either<IUserFailure, UserEntity>> call(UserEntity user);
+}
+```
+
+**Regra:** Sempre use `Either<Failure, Success>` como retorno de métodos que podem falhar.
 
 ---
 
-## 🚀 Uso em Implementações
+## 📋 Checklist de Implementação
 
-### No Repository
+Ao criar Failures para um novo contexto:
+
+- [ ] **Interface abstrata** criada (`I{Contexto}Failure`)
+- [ ] **Herda de ICustomFailure** do base_core
+- [ ] **Arquivo nomeado** corretamente (`i_{contexto}_failures.dart`)
+- [ ] **Erros comuns** implementados (ServerError, UnknownError, UnauthenticatedError)
+- [ ] **Erros específicos** do contexto implementados
+- [ ] **Nomenclatura clara** que descreve o problema
+- [ ] **Campo `message`** obrigatório em todos os erros
+- [ ] **Usado com Either** em repositories e usecases
+
+---
+
+## 🚀 Benefícios dos Failures Tipados
+
+### ✅ Tratamento Explícito de Erros
+
 ```dart
-class UserRepository extends IUserRepository {
-  @override
-  Future<Either<IUserFailure, UserEntity>> getUser() async {
-    try {
-      final result = await datasource.getUser();
-      return result.fold(
-        (error) => Left(UserServerError(message: error.message)),
-        (response) => Right(UserModel.fromMap(response.data)),
-      );
-    } catch (exception) {
-      return Left(UserUnknownError(message: '$exception'));
+// ❌ Exceções - Tratamento implícito e propenso a erros
+try {
+  final user = await getUser(id);
+} catch (e) {
+  // Que tipo de erro? Não sabemos!
+  print('Erro: $e');
+}
+
+// ✅ Either + Failures - Tratamento explícito e tipado
+final result = await getUser(id);
+result.fold(
+  (failure) {
+    // Sabemos exatamente qual tipo de erro
+    if (failure is UserNotFoundError) {
+      // Tratamento específico
     }
-  }
+  },
+  (user) {
+    // Sucesso
+  },
+);
+```
+
+### ✅ Compilador Garante Tratamento
+
+```dart
+// Either força você a tratar ambos os casos
+final result = await getUser(id);
+
+// ❌ Não compila - precisa tratar Left e Right
+// final user = result;
+
+// ✅ Compila - tratamento explícito
+result.fold(
+  (failure) => handleError(failure),
+  (user) => handleSuccess(user),
+);
+```
+
+### ✅ Pattern Matching por Tipo
+
+```dart
+result.fold(
+  (failure) {
+    // Pattern matching seguro
+    switch (failure) {
+      case UserNotFoundError():
+        print('Usuário não encontrado');
+      case UserUnauthenticatedError():
+        print('Não autenticado');
+      case UserServerError():
+        print('Erro no servidor');
+      default:
+        print('Erro desconhecido');
+    }
+  },
+  (user) => print('Sucesso: ${user.name}'),
+);
+```
+
+### ✅ Testabilidade
+
+```dart
+// Fácil criar failures para testes
+final failure = UserNotFoundError(message: 'User not found');
+final result = Left<IUserFailure, UserEntity>(failure);
+
+// Fácil verificar tipo de erro
+expect(result.isLeft(), true);
+expect(result.getLeft().toNullable(), isA<UserNotFoundError>());
+```
+
+### ✅ Documentação Viva
+
+```dart
+// Failures documentam quais erros podem ocorrer
+abstract class IUserRepository {
+  // Olhando a assinatura, sei que pode retornar IUserFailure
+  Future<Either<IUserFailure, UserEntity>> getUserById(String id);
+
+  // Posso ver quais erros específicos existem:
+  // - UserNotFoundError
+  // - UserServerError
+  // - UserUnauthenticatedError
+  // - etc.
 }
 ```
 
-### No UseCase
-```dart
-class UserUsecase extends IUserUsecase {
-  @override
-  Future<Either<IUserFailure, UserEntity>> updateUser({
-    required UserEntity data,
-  }) async {
-    // Validações de negócio
-    if (!data.hasValidEmail) {
-      return Left(UpdateUserDataError(message: 'Email inválido'));
-    }
-    
-    return repository.updateUser(data: data);
-  }
-}
-```
+---
 
-Esta estrutura de failures garante **tratamento granular de erros**, permitindo que a aplicação reaja apropriadamente a cada tipo de falha específica do domínio! 🎯
+## 🔗 Próximos Passos
+
+1. **[Definir Repository Interfaces](./i_repositories.md)** - Usar Failures nos contratos
+2. **[Definir UseCase Interfaces](./i_usecases.md)** - Usar Failures nos casos de uso
+3. **[Implementar na Infrastructure](../infra/repositories.md)** - Transformar erros técnicos em Failures
+
+---
+
+_Failures tipados com Either pattern eliminam exceções e tornam o tratamento de erros explícito, seguro e testável._

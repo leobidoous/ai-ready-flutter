@@ -1,255 +1,313 @@
-# Infrastructure Models - Clean Architecture
+# Models - Infrastructure Layer
 
-## 📋 Visão Geral
+## 📋 O que são Models?
 
-Os **Models** são implementações concretas das entities que lidam com a serialização/deserialização de dados e adaptação entre camadas. Eles servem como ponte entre o mundo externo (APIs, banco de dados) e as entities do domínio.
+**Models** são adaptadores que fazem a transformação entre **dados externos** (JSON da API) e **Entities** (objetos de negócio). Eles estendem Entities e adicionam capacidades de serialização/deserialização, mantendo a compatibilidade com o Domain.
 
-### 🎯 Propósito
+### 🎯 Responsabilidades
 
-- **Serialização**: Converter entities para/de formatos externos (JSON, XML, etc.)
-- **Adaptação**: Adaptar dados externos para o formato esperado pelas entities
-- **Validação de Dados**: Tratar dados inconsistentes vindos de fontes externas
-- **Mapeamento**: Mapear campos com nomes diferentes entre entity e fonte externa
+**✅ O que Models FAZEM:**
 
-### 📍 Localização na Arquitetura
+- **Estendem Entities** - Herdam todos os campos e comportamentos
+- **Serializam** - Transformam Entity → JSON (toMap, toCreate, toUpdate)
+- **Deserializam** - Transformam JSON → Entity (fromMap)
+- **Tratam dados nulos** - Fornecem valores padrão seguros
+- **Formatam dados** - Limpam CPF, telefone, datas, etc.
+- **Implementam Equatable** - Comparação de igualdade
 
-```
-lib/
-└── src/
-    └── infra/
-        └── models/
-            ├── user_model.dart
-            ├── product_model.dart
-            └── order_model.dart
-```
+**❌ O que Models NÃO FAZEM:**
 
-### 📋 Regras de Nomenclatura
-
-**Classes:**
-- ✅ **Sufixo obrigatório**: Sempre terminar com `Model` (singular)
-- ✅ **PascalCase**: `UserModel`, `ProductModel`, `PaymentPlanModel`
-- ❌ **Plurais**: Nunca usar `Models` (plural)
-
-**Arquivos:**
-- ✅ **snake_case**: Converter o nome da classe para snake_case
-- ✅ **Nome da classe principal**: O arquivo deve ter o nome da classe principal
-- ✅ **Exemplos corretos**: 
-  - `UserModel` → `user_model.dart`
-  - `PaymentPlanModel` → `payment_plan_model.dart`
-  - `SimulationFiltersResponseModel` → `simulation_filters_response_model.dart`
-- ❌ **Exemplos incorretos**:
-  - `user_models.dart` (plural)
-  - `payment_models.dart` (genérico)
-  - `userModel.dart` (camelCase)
-
-**Organização com part/part of:**
-- ✅ **Quando usar**: Para models complexos com muitas classes relacionadas
-- ✅ **Arquivo principal**: Contém o model principal e os `part` imports
-- ✅ **Arquivos part**: Cada model complementar em arquivo separado com `part of`
-- ✅ **Estrutura exemplo**:
-  ```
-  simulation_filters_response_model.dart  // Principal
-  ├── eligible_scholarship_model.dart     // part of
-  ├── awarded_scholarship_model.dart      // part of
-  ├── simulation_success_model.dart       // part of
-  └── payment_plan_model.dart            // part of
-  ```
+- Não contêm regras de negócio (ficam nas Entities ou UseCases)
+- Não fazem comunicação externa (isso é DataSource)
+- Não conhecem detalhes de HTTP ou APIs
 
 ---
 
-## 🏗️ Estrutura Base de um Model
+## 🏗️ Exemplo Completo: UserModel
 
-### Regras Fundamentais
-
-1. **Herança**: Models estendem suas respectivas Entities
-2. **Equatable**: Implementar comparação via EquatableMixin
-3. **Factory Constructors**: Para criação a partir de Map e Entity
-4. **Serialização**: Métodos toMap/toJson para conversão
-5. **Tratamento de Nulos**: Valores padrão para campos opcionais
-
-### Template Base
+Este exemplo demonstra **todos os elementos** de um Model bem estruturado, correspondendo ao UserEntity documentado:
 
 ```dart
 import 'package:base_core/base_core.dart';
-import '../../domain/entities/[nome]_entity.dart';
-
-class [Nome]Model extends [Nome]Entity with EquatableMixin {
-  const [Nome]Model({
-    required super.propriedade1,
-    required super.propriedade2,
-    super.propriedadeOpcional,
-  });
-
-  /// Factory para criar model a partir de Map (JSON/API)
-  factory [Nome]Model.fromMap(Map<String, dynamic> map) {
-    return [Nome]Model(
-      propriedade1: map['propriedade1'] ?? '',
-      propriedade2: TipoComplexo.fromJson(map['propriedade2']),
-      propriedadeOpcional: map['propriedade_opcional'],
-    );
-  }
-
-  /// Factory para criar model a partir de Entity
-  factory [Nome]Model.fromEntity([Nome]Entity entity) {
-    return [Nome]Model(
-      propriedade1: entity.propriedade1,
-      propriedade2: entity.propriedade2,
-      propriedadeOpcional: entity.propriedadeOpcional,
-    );
-  }
-
-  /// Getter para converter de volta para Entity
-  [Nome]Entity get toEntity => this;
-
-  /// Conversão para Map (para APIs/persistência)
-  Map<String, dynamic> get toMap {
-    return {
-      'propriedade1': propriedade1,
-      'propriedade2': propriedade2.toJson,
-      'propriedade_opcional': propriedadeOpcional,
-    };
-  }
-
-  /// Conversão para JSON String (quando necessário)
-  String get toJson => jsonEncode(toMap);
-
-  /// Implementação do Equatable
-  @override
-  List<Object?> get props => [
-    propriedade1,
-    propriedade2,
-    propriedadeOpcional,
-  ];
-
-  @override
-  bool? get stringify => true;
-}
-```
-
----
-
-## 📚 Exemplo Prático: UserModel
-
-### Implementação Completa
-
-```dart
-import 'package:base_core/base_core.dart';
-
 import '../../domain/entities/user_entity.dart';
-import '../../domain/enums/account_person_type.dart';
 import '../../domain/enums/user_gender_type.dart';
+import '../../domain/enums/user_status.dart';
 import 'address_model.dart';
-import 'user_notification_preferences_model.dart';
 
 class UserModel extends UserEntity with EquatableMixin {
-  const UserModel({
+  // 1. Constructor - Passa todos os parâmetros para a Entity
+  UserModel({
     required super.id,
-    required super.rg,
-    required super.cpf,
     required super.name,
     required super.email,
-    required super.phone,
+    required super.cpf,
     required super.birth,
+    required super.status,
     required super.gender,
+    required super.isActive,
+    required super.score,
     required super.address,
-    required super.personType,
-    required super.notificationPreferences,
+    required super.tags,
+    super.phone,
+    super.lastLoginAt,
   });
 
-  /// Cria um UserModel a partir de dados da API/Database
+  // 2. fromMap - Deserialização (JSON → Model)
   factory UserModel.fromMap(Map<String, dynamic> map) {
     return UserModel(
-      // Campos básicos com tratamento de nulos
+      // Strings com fallback
       id: map['id']?.toString() ?? '',
-      rg: map['rg']?.toString() ?? '',
-      cpf: map['cpf']?.toString().replaceAll(RegExp(r'[^0-9]'), '') ?? '',
       name: map['name']?.toString() ?? '',
       email: map['email']?.toString() ?? '',
-      phone: map['phone']?.toString() ?? '',
-      
-      // Enums com tratamento seguro
-      gender: UserGenderType.fromJson(map['gender']),
-      personType: AccountPersonType.fromJson(map['personType']),
-      
-      // Objetos complexos com validação
-      address: AddressModel.fromMap(map['address'] ?? {}),
-      notificationPreferences: UserNotificationPreferencesModel.fromMap(
-        map['notification_preferences'] ?? {},
+      cpf: map['cpf']?.toString() ?? '',
+
+      // String? nullable
+      phone: map['phone']?.toString(),
+
+      // DateTime com tratamento
+      birth: DateFormat.tryParseOrDateNow(map['birthDate']?.toString()),
+
+      // DateTime? nullable
+      lastLoginAt: map['lastLoginAt'] != null
+          ? DateTime.tryParse(map['lastLoginAt'].toString())
+          : null,
+
+      // Enums com fromJson
+      status: UserStatus.fromJson(map['status']?.toString()),
+      gender: UserGenderType.fromJson(map['gender']?.toString()),
+
+      // bool
+      isActive: map['isActive'] == true,
+
+      // double/int
+      score: (map['score'] ?? 0).toDouble(),
+
+      // Entity aninhada
+      address: AddressModel.fromMap(
+        map['address'] is Map ? map['address'] : {},
       ),
-      
-      // Data com parsing customizado e fallback
-      birth: DateFormat.tryParseOrDateNow(
-        map['birth_date'],
-        pattern: 'yyyy-MM-dd',
-      ),
+
+      // List
+      tags: map['tags'] is List
+          ? List<String>.from(map['tags'])
+          : [],
     );
   }
 
-  /// Cria um UserModel a partir de uma UserEntity
+  // 3. fromEntity - Conversão (Entity → Model)
   factory UserModel.fromEntity(UserEntity entity) {
     return UserModel(
       id: entity.id,
-      rg: entity.rg,
-      cpf: entity.cpf,
       name: entity.name,
-      birth: entity.birth,
       email: entity.email,
+      cpf: entity.cpf,
       phone: entity.phone,
+      birth: entity.birth,
+      lastLoginAt: entity.lastLoginAt,
+      status: entity.status,
       gender: entity.gender,
+      isActive: entity.isActive,
+      score: entity.score,
       address: entity.address,
-      personType: entity.personType,
-      notificationPreferences: entity.notificationPreferences,
+      tags: entity.tags,
     );
   }
 
-  /// Converte o model de volta para entity (útil para testes e uso no domain)
+  // 4. toEntity - Conversão (Model → Entity)
   UserEntity get toEntity => this;
 
-  /// Converte para Map para envio para API/Database
+  // 5. toMap - Serialização completa (Model → JSON)
   Map<String, dynamic> get toMap {
     return {
       'id': id,
-      'rg': rg,
       'name': name,
       'email': email,
+      'cpf': cpf.replaceAll(RegExp('[^0-9]'), ''),  // Remove formatação
       'phone': phone,
+      'birthDate': birth.toIso8601String(),
+      'lastLoginAt': lastLoginAt?.toIso8601String(),
+      'status': status.toJson,
       'gender': gender.toJson,
-      'personType': personType.toJson,
-      'birth_date': birth.toIso8601String(),
-      'cpf': cpf.replaceAll(RegExp(r'[^0-9]'), ''), // Remove formatação
+      'isActive': isActive,
+      'score': score,
       'address': AddressModel.fromEntity(address).toMap,
-      'notification_preferences': UserNotificationPreferencesModel.fromEntity(
-        notificationPreferences,
-      ).toMap,
+      'tags': tags,
     };
   }
 
-  /// Conversão para JSON string (quando necessário)
-  String get toJson => jsonEncode(toMap);
-
-  /// Factory para criar a partir de JSON string
-  factory UserModel.fromJson(String jsonString) {
-    final map = jsonDecode(jsonString) as Map<String, dynamic>;
-    return UserModel.fromMap(map);
+  // 6. toCreate - Serialização para criação (POST)
+  Map<String, dynamic> get toCreate {
+    return {
+      'name': name,
+      'email': email,
+      'cpf': cpf.trim().replaceAll(RegExp('[^0-9]'), ''),
+      'phone': phone?.trim().replaceAll(RegExp('[^0-9]'), ''),
+      'birthDate': birth.toIso8601String(),
+      'gender': gender.toJson,
+      'address': AddressModel.fromEntity(address).toMap,
+    };
   }
 
-  /// Implementação do Equatable para comparações
+  // 7. toUpdate - Serialização para atualização (PUT/PATCH)
+  Map<String, dynamic> get toUpdate {
+    return {
+      if (name.isNotEmpty) 'name': name,
+      if (email.isNotEmpty) 'email': email,
+      if (phone != null && phone!.isNotEmpty)
+        'phone': phone!.trim().replaceAll(RegExp('[^0-9]'), ''),
+      'birthDate': birth.toIso8601String(),
+      'gender': gender.toJson,
+      'address': AddressModel.fromEntity(address).toMap,
+    };
+  }
+
+  // 8. Equatable - Comparação de igualdade
   @override
   List<Object?> get props => [
-    id,
-    rg,
-    cpf,
-    name,
-    birth,
-    email,
-    phone,
-    gender,
-    address,
-    personType,
-    notificationPreferences,
-  ];
+        id,
+        name,
+        email,
+        cpf,
+        phone,
+        birth,
+        lastLoginAt,
+        status,
+        gender,
+        isActive,
+        score,
+        address,
+        tags,
+      ];
 
-  /// Habilita toString() automático do Equatable
+  @override
+  bool? get stringify => true;
+}
+```
+
+### 🔑 Elementos Essenciais
+
+1. **Extends Entity** - Herda todos os campos da Entity
+2. **Mixin EquatableMixin** - Comparação de igualdade
+3. **fromMap** - Deserialização JSON → Model (com tratamento de nulos)
+4. **fromEntity** - Conversão Entity → Model
+5. **toEntity** - Conversão Model → Entity (geralmente `this`)
+6. **toMap** - Serialização completa Model → JSON
+7. **toCreate/toUpdate** - Serializações específicas para operações
+8. **props** - Lista de propriedades para Equatable
+
+---
+
+## 🎯 Tratamento de Dados por Tipo
+
+### 1. **String** - Com fallback
+
+```dart
+id: map['id']?.toString() ?? '',
+name: map['name']?.toString() ?? '',
+```
+
+### 2. **String?** - Nullable
+
+```dart
+phone: map['phone']?.toString(),
+```
+
+### 3. **DateTime** - Com tratamento
+
+```dart
+birth: DateFormat.tryParseOrDateNow(map['birthDate']?.toString()),
+```
+
+### 4. **DateTime?** - Nullable
+
+```dart
+lastLoginAt: map['lastLoginAt'] != null
+    ? DateTime.tryParse(map['lastLoginAt'].toString())
+    : null,
+```
+
+### 5. **Enum** - Com fromJson
+
+```dart
+status: UserStatus.fromJson(map['status']?.toString()),
+gender: UserGenderType.fromJson(map['gender']?.toString()),
+```
+
+### 6. **bool** - Com verificação
+
+```dart
+isActive: map['isActive'] == true,
+```
+
+### 7. **int/double** - Com fallback
+
+```dart
+score: (map['score'] ?? 0).toDouble(),
+age: map['age'] as int? ?? 0,
+```
+
+### 8. **Entity** - Model aninhado
+
+```dart
+address: AddressModel.fromMap(
+  map['address'] is Map ? map['address'] : {},
+),
+```
+
+### 9. **List** - Com verificação
+
+```dart
+tags: map['tags'] is List
+    ? List<String>.from(map['tags'])
+    : [],
+```
+
+---
+
+## 🎨 Padrões e Convenções
+
+### ✅ Nomenclatura
+
+| Tipo        | Padrão              | Exemplo                                 |
+| ----------- | ------------------- | --------------------------------------- |
+| **Classe**  | `{Nome}Model`       | `UserModel`, `AddressModel`             |
+| **Arquivo** | `{nome}_model.dart` | `user_model.dart`, `address_model.dart` |
+
+### ✅ Estrutura do Arquivo
+
+```dart
+// 1. Imports
+import 'package:base_core/base_core.dart';
+import '../../domain/entities/user_entity.dart';
+import '../../domain/enums/user_status.dart';
+
+// 2. Classe extends Entity with EquatableMixin
+class UserModel extends UserEntity with EquatableMixin {
+  // 3. Constructor
+  UserModel({required super.id, required super.name, ...});
+
+  // 4. fromMap
+  factory UserModel.fromMap(Map<String, dynamic> map) { ... }
+
+  // 5. fromEntity
+  factory UserModel.fromEntity(UserEntity entity) { ... }
+
+  // 6. toEntity
+  UserEntity get toEntity => this;
+
+  // 7. toMap
+  Map<String, dynamic> get toMap { ... }
+
+  // 8. toCreate (opcional)
+  Map<String, dynamic> get toCreate { ... }
+
+  // 9. toUpdate (opcional)
+  Map<String, dynamic> get toUpdate { ... }
+
+  // 10. Equatable props
+  @override
+  List<Object?> get props => [id, name, ...];
+
   @override
   bool? get stringify => true;
 }
@@ -257,347 +315,74 @@ class UserModel extends UserEntity with EquatableMixin {
 
 ---
 
-## 🎨 Padrões de Implementação
+## 📋 Checklist de Implementação
 
-### 1. Tratamento de Dados Nulos/Inválidos
+Ao criar um Model:
 
-```dart
-factory ProductModel.fromMap(Map<String, dynamic> map) {
-  return ProductModel(
-    // String: valor padrão vazio
-    id: map['id']?.toString() ?? '',
-    name: map['name']?.toString() ?? 'Produto sem nome',
-    
-    // Números: parsing seguro
-    price: double.tryParse(map['price']?.toString() ?? '0') ?? 0.0,
-    quantity: int.tryParse(map['quantity']?.toString() ?? '0') ?? 0,
-    
-    // Booleanos: valor padrão explícito
-    isActive: map['is_active'] ?? true,
-    
-    // Datas: parsing customizado
-    createdAt: DateTime.tryParse(map['created_at'] ?? '') ?? DateTime.now(),
-    
-    // Listas: verificação de tipo
-    tags: map['tags'] is List 
-        ? List<String>.from(map['tags']) 
-        : <String>[],
-    
-    // Objetos aninhados: verificação de nulo
-    category: map['category'] != null 
-        ? CategoryModel.fromMap(map['category'])
-        : CategoryModel.empty(),
-  );
-}
-```
+- [ ] **Extends Entity** correspondente
+- [ ] **Mixin EquatableMixin** adicionado
+- [ ] **Constructor** passa todos os parâmetros para `super`
+- [ ] **fromMap** implementado com tratamento de nulos
+- [ ] **fromEntity** implementado
+- [ ] **toEntity** implementado (geralmente `this`)
+- [ ] **toMap** implementado
+- [ ] **toCreate/toUpdate** implementados (se necessário)
+- [ ] **props** lista todas as propriedades
+- [ ] **stringify** definido como `true`
+- [ ] **Tratamento de nulos** em todos os campos
+- [ ] **Formatação de dados** (CPF, telefone, datas)
 
-### 2. Mapeamento de Campos com Nomes Diferentes
+---
+
+## 🚀 Benefícios dos Models
+
+### ✅ Separação de Responsabilidades
+
+- **Entity**: Regras de negócio puras
+- **Model**: Serialização/deserialização
+
+### ✅ Tratamento Robusto de Dados
 
 ```dart
-factory OrderModel.fromMap(Map<String, dynamic> map) {
-  return OrderModel(
-    // API usa 'order_id', entity usa 'id'
-    id: map['order_id']?.toString() ?? '',
-    
-    // API usa 'customer_email', entity usa 'customerEmail'
-    customerEmail: map['customer_email'] ?? '',
-    
-    // API usa 'total_amount', entity usa 'totalAmount'
-    totalAmount: double.tryParse(map['total_amount']?.toString() ?? '0') ?? 0.0,
-    
-    // API usa 'created_timestamp', entity usa 'createdAt'
-    createdAt: DateTime.fromMillisecondsSinceEpoch(
-      map['created_timestamp'] ?? 0,
+// Trata nulos, tipos incorretos, dados faltando
+factory UserModel.fromMap(Map<String, dynamic> map) {
+  return UserModel(
+    id: map['id']?.toString() ?? '',  // Nunca null
+    name: map['name']?.toString() ?? '',  // Sempre String
+    address: AddressModel.fromMap(
+      map['address'] is Map ? map['address'] : {},  // Sempre Map
     ),
   );
 }
-
-Map<String, dynamic> get toMap {
-  return {
-    // Volta para o formato da API
-    'order_id': id,
-    'customer_email': customerEmail,
-    'total_amount': totalAmount,
-    'created_timestamp': createdAt.millisecondsSinceEpoch,
-  };
-}
 ```
 
-### 3. Validação e Transformação de Dados
+### ✅ Flexibilidade de Serialização
 
 ```dart
-factory UserModel.fromMap(Map<String, dynamic> map) {
-  // Limpeza e validação de CPF
-  final rawCpf = map['cpf']?.toString() ?? '';
-  final cleanCpf = rawCpf.replaceAll(RegExp(r'[^0-9]'), '');
-  
-  // Validação de email
-  final email = map['email']?.toString() ?? '';
-  final validEmail = _isValidEmail(email) ? email : '';
-  
-  // Normalização de nome
-  final name = _normalizeName(map['name']?.toString() ?? '');
-  
-  return UserModel(
-    cpf: cleanCpf,
-    email: validEmail,
-    name: name,
-    // ... outros campos
-  );
-}
+// Diferentes formatos para diferentes operações
+final createPayload = model.toCreate;  // Campos para criar
+final updatePayload = model.toUpdate;  // Campos para atualizar
+final fullData = model.toMap;  // Todos os campos
+```
 
-static String _normalizeName(String name) {
-  return name
-      .trim()
-      .split(' ')
-      .map((word) => word.isEmpty ? '' : 
-           word[0].toUpperCase() + word.substring(1).toLowerCase())
-      .where((word) => word.isNotEmpty)
-      .join(' ');
-}
+### ✅ Comparação de Igualdade
 
-static bool _isValidEmail(String email) {
-  return RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email);
-}
+```dart
+// Equatable permite comparação fácil
+final user1 = UserModel(id: '1', name: 'João', ...);
+final user2 = UserModel(id: '1', name: 'João', ...);
+
+print(user1 == user2);  // true (mesmos valores)
 ```
 
 ---
 
-## 🔧 Padrões Avançados
+## � Próximos Passos
 
-### Models com Relacionamentos
-
-```dart
-class OrderModel extends OrderEntity with EquatableMixin {
-  OrderModel({
-    required super.id,
-    required super.customerId,
-    required super.items,
-    required super.status,
-    required super.createdAt,
-  });
-
-  factory OrderModel.fromMap(Map<String, dynamic> map) {
-    return OrderModel(
-      id: map['id']?.toString() ?? '',
-      customerId: map['customer_id']?.toString() ?? '',
-      status: OrderStatus.fromJson(map['status']),
-      createdAt: DateTime.tryParse(map['created_at'] ?? '') ?? DateTime.now(),
-      
-      // Lista de objetos complexos
-      items: map['items'] is List
-          ? (map['items'] as List)
-              .map((item) => OrderItemModel.fromMap(item))
-              .toList()
-          : <OrderItemEntity>[],
-    );
-  }
-
-  Map<String, dynamic> get toMap {
-    return {
-      'id': id,
-      'customer_id': customerId,
-      'status': status.toJson,
-      'created_at': createdAt.toIso8601String(),
-      'items': items.map((item) => 
-        OrderItemModel.fromEntity(item).toMap
-      ).toList(),
-    };
-  }
-
-  @override
-  List<Object?> get props => [id, customerId, items, status, createdAt];
-
-  @override
-  bool? get stringify => true;
-}
-```
-
-### Models com Cache/Otimização
-
-```dart
-class ProductModel extends ProductEntity with EquatableMixin {
-  ProductModel({
-    required super.id,
-    required super.name,
-    required super.price,
-    required super.category,
-  });
-
-  // Cache para conversões pesadas
-  String? _cachedJson;
-  Map<String, dynamic>? _cachedMap;
-
-  factory ProductModel.fromMap(Map<String, dynamic> map) {
-    final model = ProductModel(
-      id: map['id']?.toString() ?? '',
-      name: map['name']?.toString() ?? '',
-      price: double.tryParse(map['price']?.toString() ?? '0') ?? 0.0,
-      category: CategoryModel.fromMap(map['category'] ?? {}),
-    );
-    
-    // Armazena o map original para evitar recomputação
-    model._cachedMap = Map.from(map);
-    return model;
-  }
-
-  Map<String, dynamic> get toMap {
-    return _cachedMap ??= {
-      'id': id,
-      'name': name,
-      'price': price,
-      'category': CategoryModel.fromEntity(category).toMap,
-    };
-  }
-
-  String get toJson {
-    return _cachedJson ??= jsonEncode(toMap);
-  }
-
-  @override
-  List<Object?> get props => [id, name, price, category];
-
-  @override
-  bool? get stringify => true;
-}
-```
+1. **[Implementar Repository](./repositories.md)** - Usar Models para transformar dados
+2. **[Implementar UseCase](./usecases.md)** - Orquestrar Repository
+3. **[Implementar DataSource](../data/datasources.md)** - Comunicação real
 
 ---
 
-## 🎯 Boas Práticas para Models
-
-### ✅ Faça
-
-```dart
-// ✅ Use const constructor quando possível  
-const UserModel({required super.id, required super.name});
-
-// ✅ Estenda a entity correspondente
-class UserModel extends UserEntity with EquatableMixin
-
-// ✅ Use factory constructors descritivos
-factory UserModel.fromMap(Map<String, dynamic> map)
-factory UserModel.fromEntity(UserEntity entity)
-
-// ✅ Trate dados nulos/inválidos com fallbacks seguros
-price: double.tryParse(map['price']?.toString() ?? '0') ?? 0.0
-
-// ✅ Use EquatableMixin para comparações automáticas
-@override
-List<Object?> get props => [id, name, email];
-
-// ✅ Documente transformações complexas
-/// Converte timestamp Unix para DateTime
-createdAt: DateTime.fromMillisecondsSinceEpoch(map['timestamp'])
-
-// ✅ Limpe e valide dados externos
-cpf: cpf.replaceAll(RegExp(r'[^0-9]'), '')
-```
-
-### ❌ Não Faça
-
-```dart
-// ❌ Não adicione lógica de negócio nos models
-bool get isVip => calculateVipStatus(); // deve ficar na entity
-
-// ❌ Não ignore erros de parsing
-price: double.parse(map['price']) // pode gerar exceção
-
-// ❌ Não deixe de implementar toEntity 
-// Sempre forneça uma forma de voltar para entity
-
-// ❌ Não misture responsabilidades
-void saveToDatabase() {} // responsabilidade do repository
-
-// ❌ Não esqueça de tratar listas nulas
-items: map['items'].map(...) // pode ser null
-
-// ❌ Não use constructors não-const quando const é possível
-UserModel({required super.id}); // deveria ser const
-
-// ❌ Não implemente toJson/fromJson se não for necessário
-// Apenas adicione quando realmente for usar
-```
-
----
-
-## 📋 Checklist para Criação de Models
-
-- [ ] **Construtor const**: Usa `const` quando possível?
-- [ ] **Herança**: Estende a entity correspondente?
-- [ ] **EquatableMixin**: Implementado com props corretos?
-- [ ] **fromMap**: Factory constructor implementado com tratamento de nulos?
-- [ ] **fromEntity**: Factory constructor para conversão de entity?
-- [ ] **toMap**: Método para serialização implementado?
-- [ ] **toEntity**: Getter implementado (sempre implementar)?
-- [ ] **Props**: Lista completa de propriedades no Equatable?
-- [ ] **Stringify**: Habilitado para debug?
-- [ ] **Validação**: Dados externos validados/limpos?
-- [ ] **Nomenclatura**: Nome termina com `Model`?
-- [ ] **Imports**: Apenas imports necessários incluídos?
-- [ ] **JSON**: Métodos toJson/fromJson apenas quando necessário?
-
----
-
-## 🚀 Exemplo de Uso Completo
-
-```dart
-void exemploDeUso() async {
-  // 1. Recebendo dados da API
-  final apiResponse = {
-    'id': '123',
-    'rg': '123456789',
-    'cpf': '12345678901',
-    'name': 'João da Silva',
-    'email': 'joao@email.com',
-    'phone': '11999999999',
-    'birth_date': '1990-05-15',
-    'gender': 'MALE',
-    'personType': 'INDIVIDUAL',
-    'address': {
-      'street': 'Rua das Flores, 123',
-      'city': 'São Paulo',
-      'state': 'SP',
-      'zipCode': '01234-567'
-    },
-    'notification_preferences': {
-      'email_enabled': true,
-      'sms_enabled': false
-    },
-  };
-
-  // 2. Convertendo para model
-  final userModel = UserModel.fromMap(apiResponse);
-
-  // 3. Usando como entity e aplicando regras de negócio
-  final userEntity = userModel.toEntity;
-  if (userEntity.isAdult) {
-    print('Usuário maior de idade');
-  }
-
-  if (userEntity.canReceiveNotifications()) {
-    print('Pode enviar notificações para: ${userEntity.displayName}');
-  }
-
-  print('CPF formatado: ${userEntity.formattedCpf}');
-  
-  // 4. Modificando via entity copyWith
-  final updatedEntity = userEntity.copyWith(
-    email: 'novo.email@exemplo.com',
-  );
-
-  // 5. Convertendo de volta para model para persistência
-  final updatedModel = UserModel.fromEntity(updatedEntity);
-
-  // 6. Enviando para API
-  final mapToSend = updatedModel.toMap;
-  final jsonToSend = updatedModel.toJson; // Se necessário
-  // await http.post('/api/users', body: jsonToSend);
-
-  // 7. Comparando models
-  final sameUser = UserModel.fromMap(apiResponse);
-  print(userModel == sameUser); // true (graças ao EquatableMixin)
-}
-```
-
-Esta estrutura garante que seus models sejam robustos, performáticos e mantenham a separação de responsabilidades entre domínio e infraestrutura.
+_Models são adaptadores essenciais que fazem a ponte entre dados externos (JSON) e objetos de negócio (Entities), mantendo o Domain puro e independente._

@@ -1,520 +1,352 @@
-# Domain Enums - Clean Architecture
+# Enums - Domain Layer
 
-## 📚 Visão Geral
+## 📋 O que são Enums?
 
-Os **Enums** na camada de **Domain** definem **valores constantes e bem definidos** que representam estados, tipos ou categorias específicas do negócio. Eles garantem tipagem forte e consistência de dados através de toda a aplicação.
+**Enums** são valores constantes e bem definidos do domínio que representam um conjunto fixo de opções. Eles garantem tipagem forte, evitam "strings mágicas" e tornam o código mais seguro e legível.
 
-### 🎯 Princípios Fundamentais dos Enums
+### 🎯 Responsabilidades
 
-**O QUE os Enums DEFINEM:**
-- ✅ **Valores Constantes**: Conjunto limitado e bem definido de opções
-- ✅ **Tipagem Forte**: Substitui strings/ints por tipos específicos
-- ✅ **Serialização Consistente**: Conversão padronizada para JSON/API
-- ✅ **Nomes Legíveis**: Descrições human-readable para UI
-- ✅ **Validação Automática**: Valores válidos garantidos pelo tipo
+**✅ O que Enums FAZEM:**
 
-**O QUE os Enums NÃO FAZEM:**
-- ❌ **Não contêm lógica complexa**: Apenas definição de valores
-- ❌ **Não dependem de infraestrutura**: Zero dependências externas
-- ❌ **Não mudam durante execução**: Valores imutáveis e fixos
-- ❌ **Não quebram SOLID**: Seguem princípio da responsabilidade única
-- ❌ **Não contêm regras de negócio**: Apenas categorização
+- Definem **valores constantes** do domínio (status, tipos, categorias)
+- Garantem **tipagem forte** evitando strings arbitrárias
+- Fornecem **serialização/deserialização** consistente (toJson/fromJson)
+- Carregam **metadados úteis** (nome legível, cores, ícones, etc.)
+- Implementam **valores padrão** seguros via `orElse`
 
-### 🏗️ Localização e Estrutura
+**❌ O que Enums NÃO FAZEM:**
 
-```
-lib/src/domain/enums/
-├── user_gender_type.dart
-├── auth_provider_type.dart
-├── order_status_type.dart
-└── notification_type.dart
-```
+- Não contêm lógica de negócio complexa
+- Não dependem de frameworks externos (exceto tipos básicos como Color)
+- Não fazem comunicação com APIs ou databases
 
 ---
 
-## 🔍 Anatomia de um Enum
+## 🏗️ Exemplo Completo: UserStatus
 
-### Estrutura Base
-
-```dart
-/// Enum que define [descrição dos valores]
-/// 
-/// Representa [contexto de uso] com valores bem definidos
-/// para [finalidade específica].
-enum [Nome]Type {
-  [valor1](name: '[Nome Legível]', toJson: '[VALOR_API]'),
-  [valor2](name: '[Nome Legível]', toJson: '[VALOR_API]'),
-  [valor3](name: '[Nome Legível]', toJson: '[VALOR_API]');
-
-  const [Nome]Type({required this.name, required this.toJson});
-
-  /// Nome legível para exibição na UI
-  final String name;
-  
-  /// Valor para serialização JSON/API
-  final String toJson;
-
-  /// Converte valor JSON/API para enum
-  /// 
-  /// [type] valor recebido da API ou JSON
-  /// 
-  /// Retorna o enum correspondente ou valor padrão se inválido
-  static [Nome]Type fromJson(String? type) {
-    return [Nome]Type.values.firstWhere(
-      (e) => e.toJson == type?.toUpperCase(),
-      orElse: () => [Nome]Type.[valorPadrao],
-    );
-  }
-}
-```
-
-### Elementos Essenciais
-
-1. **Valores Enum**: Definição clara de cada opção disponível
-2. **Propriedades Const**: name (UI) e toJson (API) como constantes
-3. **Construtor Const**: Garantia de imutabilidade
-4. **Método fromJson**: Deserialização segura com fallback
-5. **Documentação Clara**: Propósito e contexto de uso
-
----
-
-## 📚 Exemplos Práticos Reais
-
-### 1. UserGenderType - Tipo de Gênero
+Este exemplo demonstra **todas as melhores práticas** de Enums modernos no Dart:
 
 ```dart
-/// Enum que define os tipos de gênero disponíveis para usuários
-/// 
-/// Representa as opções de gênero que podem ser selecionadas
-/// no cadastro e perfil do usuário.
-enum UserGenderType {
-  male(name: 'Masculino', toJson: 'M'),
-  female(name: 'Feminino', toJson: 'F'),
-  other(name: 'Outro', toJson: 'NI');
+import 'package:flutter/material.dart' show Color, Colors;
 
-  const UserGenderType({required this.name, required this.toJson});
+enum UserStatus {
+  all(name: 'Todos', toJson: '', color: Colors.grey),
+  active(name: 'Ativo', toJson: 'ACTIVE', color: Colors.green),
+  disabled(name: 'Desativado', toJson: 'DISABLED', color: Colors.grey),
+  deleted(name: 'Removido', toJson: 'DELETED', color: Colors.red);
 
-  /// Nome legível para exibição na UI
-  final String name;
-  
-  /// Valor para serialização JSON/API
-  final String toJson;
-
-  /// Converte valor JSON/API para enum de gênero
-  /// 
-  /// [type] valor recebido da API ('M', 'F', 'NI')
-  /// 
-  /// Retorna o enum correspondente ou 'other' se inválido
-  static UserGenderType fromJson(String? type) {
-    return UserGenderType.values.firstWhere(
-      (e) => e.toJson == type?.toUpperCase(),
-      orElse: () => UserGenderType.other,
-    );
-  }
-}
-```
-
-### 2. AuthProviderType - Provedor de Autenticação
-
-```dart
-/// Enum que define os provedores de autenticação disponíveis
-/// 
-/// Representa os diferentes métodos de autenticação que o usuário
-/// pode escolher para fazer login no sistema.
-enum AuthProviderType {
-  whatsapp(name: 'WhatsApp', toJson: 'WHATSAPP'),
-  email(name: 'E-mail', toJson: 'EMAIL'),
-  sms(name: 'SMS', toJson: 'SMS');
-
-  const AuthProviderType({required this.name, required this.toJson});
-
-  /// Nome legível para exibição na UI
-  final String name;
-  
-  /// Valor para serialização JSON/API
-  final String toJson;
-
-  /// Converte valor JSON/API para enum de provedor
-  /// 
-  /// [type] valor recebido da API ('WHATSAPP', 'EMAIL', 'SMS')
-  /// 
-  /// Retorna o enum correspondente ou 'whatsapp' se inválido
-  static AuthProviderType fromJson(String? type) {
-    return AuthProviderType.values.firstWhere(
-      (e) => e.toJson == type?.toUpperCase(),
-      orElse: () => AuthProviderType.whatsapp,
-    );
-  }
-}
-```
-
-### Características dos Exemplos Reais
-
-✅ **Padrão consistente:**
-- Propriedades `name` (UI) e `toJson` (API)
-- Construtor const com parâmetros nomeados obrigatórios
-- Método estático `fromJson` com fallback seguro
-
-✅ **Nomes descritivos:**
-- Sufixo `Type` para indicar que é um enum
-- Valores em camelCase para Dart
-- Documentação clara do propósito
-
-✅ **Serialização robusta:**
-- `toUpperCase()` para normalização
-- `orElse` com valor padrão sensato
-- Mapeamento direto entre enum e API
-
----
-
-## 🎨 Padrões de Implementação
-
-### 1. Enum Simples (Estados)
-```dart
-enum OrderStatusType {
-  pending(name: 'Pendente', toJson: 'PENDING'),
-  processing(name: 'Processando', toJson: 'PROCESSING'),
-  shipped(name: 'Enviado', toJson: 'SHIPPED'),
-  delivered(name: 'Entregue', toJson: 'DELIVERED'),
-  cancelled(name: 'Cancelado', toJson: 'CANCELLED');
-
-  const OrderStatusType({required this.name, required this.toJson});
-
-  final String name;
-  final String toJson;
-
-  static OrderStatusType fromJson(String? type) {
-    return OrderStatusType.values.firstWhere(
-      (e) => e.toJson == type?.toUpperCase(),
-      orElse: () => OrderStatusType.pending,
-    );
-  }
-}
-```
-
-### 2. Enum com Propriedades Adicionais
-```dart
-enum NotificationPriorityType {
-  low(name: 'Baixa', toJson: 'LOW', color: 0xFF4CAF50, order: 1),
-  medium(name: 'Média', toJson: 'MEDIUM', color: 0xFFFF9800, order: 2),
-  high(name: 'Alta', toJson: 'HIGH', color: 0xFFF44336, order: 3),
-  urgent(name: 'Urgente', toJson: 'URGENT', color: 0xFF9C27B0, order: 4);
-
-  const NotificationPriorityType({
+  const UserStatus({
     required this.name,
     required this.toJson,
     required this.color,
-    required this.order,
   });
 
-  final String name;
-  final String toJson;
-  final int color;
-  final int order;
+  // Metadados do enum
+  final String name;      // Nome legível para UI
+  final String toJson;    // Valor para serialização
+  final Color color;      // Metadado visual
 
-  static NotificationPriorityType fromJson(String? type) {
-    return NotificationPriorityType.values.firstWhere(
+  // Deserialização segura com valor padrão
+  static UserStatus fromJson(String? type) {
+    return UserStatus.values.firstWhere(
       (e) => e.toJson == type?.toUpperCase(),
-      orElse: () => NotificationPriorityType.low,
+      orElse: () => UserStatus.active,
     );
-  }
-
-  /// Compara prioridades para ordenação
-  bool isHigherThan(NotificationPriorityType other) {
-    return order > other.order;
   }
 }
 ```
 
-### 3. Enum com Métodos Úteis
-```dart
-enum PaymentMethodType {
-  creditCard(name: 'Cartão de Crédito', toJson: 'CREDIT_CARD', isInstant: true),
-  debitCard(name: 'Cartão de Débito', toJson: 'DEBIT_CARD', isInstant: true),
-  pix(name: 'PIX', toJson: 'PIX', isInstant: true),
-  bankSlip(name: 'Boleto', toJson: 'BANK_SLIP', isInstant: false),
-  bankTransfer(name: 'Transferência', toJson: 'BANK_TRANSFER', isInstant: false);
+### 🔑 Elementos Essenciais
 
-  const PaymentMethodType({
+1. **Enhanced Enum** - Dart moderno permite campos e métodos em enums
+2. **Constructor `const`** - Otimização e imutabilidade
+3. **Campos `final`** - Metadados imutáveis (name, toJson, color, etc.)
+4. **Método `fromJson`** - Deserialização segura com `orElse`
+5. **Exhaustiveness** - Compilador garante que todos os casos sejam tratados
+
+---
+
+## 🎯 Melhores Práticas Modernas
+
+### 1. **Exhaustiveness Checking (Switch Expressions)**
+
+```dart
+// ✅ Dart moderno - Compilador garante todos os casos
+String getMessage(UserStatus status) {
+  return switch (status) {
+    UserStatus.active => 'Usuário ativo',
+    UserStatus.disabled => 'Usuário desativado',
+    UserStatus.deleted => 'Usuário removido',
+    UserStatus.all => 'Todos os usuários',
+    // Se adicionar novo valor, compilador exige tratamento aqui!
+  };
+}
+
+// ✅ Pattern matching com when
+String getDetailedMessage(UserStatus status) {
+  return switch (status) {
+    UserStatus.active => 'Pode acessar o sistema',
+    UserStatus.disabled => 'Acesso temporariamente bloqueado',
+    UserStatus.deleted => 'Conta removida permanentemente',
+    UserStatus.all => 'Filtro para visualização',
+  };
+}
+```
+
+**Benefício:** Se você adicionar um novo valor ao enum (ex: `suspended`), o compilador vai **forçar** você a tratar esse caso em todos os switches, evitando bugs!
+
+### 2. **Métodos no Enum**
+
+```dart
+enum UserStatus {
+  all(name: 'Todos', toJson: '', color: Colors.grey),
+  active(name: 'Ativo', toJson: 'ACTIVE', color: Colors.green),
+  disabled(name: 'Desativado', toJson: 'DISABLED', color: Colors.grey),
+  deleted(name: 'Removido', toJson: 'DELETED', color: Colors.red);
+
+  const UserStatus({
     required this.name,
     required this.toJson,
-    required this.isInstant,
+    required this.color,
   });
 
   final String name;
   final String toJson;
-  final bool isInstant;
+  final Color color;
 
-  static PaymentMethodType fromJson(String? type) {
-    return PaymentMethodType.values.firstWhere(
+  // Métodos auxiliares
+  bool get canLogin => this == UserStatus.active;
+  bool get isRemoved => this == UserStatus.deleted;
+  bool get needsAction => this == UserStatus.disabled;
+
+  static UserStatus fromJson(String? type) {
+    return UserStatus.values.firstWhere(
       (e) => e.toJson == type?.toUpperCase(),
-      orElse: () => PaymentMethodType.creditCard,
-    );
-  }
-
-  /// Retorna apenas métodos de pagamento instantâneo
-  static List<PaymentMethodType> get instantMethods {
-    return PaymentMethodType.values.where((e) => e.isInstant).toList();
-  }
-
-  /// Retorna apenas métodos de pagamento não instantâneo
-  static List<PaymentMethodType> get nonInstantMethods {
-    return PaymentMethodType.values.where((e) => !e.isInstant).toList();
-  }
-}
-```
-
-### 4. Enum com Validação Customizada
-```dart
-enum DocumentType {
-  cpf(name: 'CPF', toJson: 'CPF', length: 11, mask: '###.###.###-##'),
-  cnpj(name: 'CNPJ', toJson: 'CNPJ', length: 14, mask: '##.###.###/####-##'),
-  rg(name: 'RG', toJson: 'RG', length: 9, mask: '##.###.###-#'),
-  passport(name: 'Passaporte', toJson: 'PASSPORT', length: 8, mask: '########');
-
-  const DocumentType({
-    required this.name,
-    required this.toJson,
-    required this.length,
-    required this.mask,
-  });
-
-  final String name;
-  final String toJson;
-  final int length;
-  final String mask;
-
-  static DocumentType fromJson(String? type) {
-    return DocumentType.values.firstWhere(
-      (e) => e.toJson == type?.toUpperCase(),
-      orElse: () => DocumentType.cpf,
-    );
-  }
-
-  /// Valida se o documento tem o comprimento correto
-  bool isValidLength(String document) {
-    final cleanDocument = document.replaceAll(RegExp(r'[^0-9]'), '');
-    return cleanDocument.length == length;
-  }
-
-  /// Aplica a máscara no documento
-  String applyMask(String document) {
-    final cleanDocument = document.replaceAll(RegExp(r'[^0-9]'), '');
-    if (cleanDocument.length > length) {
-      return cleanDocument.substring(0, length);
-    }
-    
-    String masked = mask;
-    for (int i = 0; i < cleanDocument.length; i++) {
-      masked = masked.replaceFirst('#', cleanDocument[i]);
-    }
-    return masked.replaceAll('#', '');
-  }
-}
-```
-
----
-
-## 📋 Template para Enums
-
-### Estrutura Básica
-
-```dart
-/// Enum que define [descrição dos valores possíveis]
-/// 
-/// Representa [contexto de uso] com valores bem definidos
-/// para [finalidade específica na aplicação].
-enum [Nome]Type {
-  [valor1](name: '[Nome para UI]', toJson: '[VALOR_API]'),
-  [valor2](name: '[Nome para UI]', toJson: '[VALOR_API]'),
-  [valorN](name: '[Nome para UI]', toJson: '[VALOR_API]');
-
-  const [Nome]Type({required this.name, required this.toJson});
-
-  /// Nome legível para exibição na interface do usuário
-  final String name;
-  
-  /// Valor usado para serialização em JSON e comunicação com API
-  final String toJson;
-
-  /// Converte valor recebido da API/JSON para enum
-  /// 
-  /// [type] valor recebido (geralmente string da API)
-  /// 
-  /// Retorna o enum correspondente ou valor padrão se inválido
-  static [Nome]Type fromJson(String? type) {
-    return [Nome]Type.values.firstWhere(
-      (e) => e.toJson == type?.toUpperCase(),
-      orElse: () => [Nome]Type.[valorPadrao],
+      orElse: () => UserStatus.active,
     );
   }
 }
 ```
 
-### Convenções de Enum
-
-**Nomenclatura:**
-- Enum: `[Nome]Type` (sufixo Type para clareza)
-- Valores: camelCase para Dart convention
-- Propriedades: `name` (UI) e `toJson` (API)
-
-**Estrutura:**
-- Construtor const com parâmetros required
-- Propriedades final para imutabilidade
-- Método estático fromJson com fallback
-- Documentação clara do propósito
-
-**Serialização:**
-- toJson: valores em UPPER_CASE para APIs
-- fromJson: normalização com toUpperCase()
-- orElse: sempre com valor padrão sensato
-
----
-
-## 📋 Checklist para Enums
-
-### Checklist de Criação ✅
-
-**Estrutura do Enum:**
-- [ ] Localizado em `lib/src/domain/enums/`
-- [ ] Nome seguindo padrão `[Nome]Type`
-- [ ] Valores em camelCase (padrão Dart)
-- [ ] Construtor const com parâmetros required
-- [ ] Propriedades final para imutabilidade
-
-**Propriedades Obrigatórias:**
-- [ ] `name`: String legível para UI
-- [ ] `toJson`: String para serialização API
-- [ ] Propriedades adicionais quando necessário
-- [ ] Todas as propriedades como final
-
-**Serialização:**
-- [ ] Método estático `fromJson(String? type)`
-- [ ] Normalização com `toUpperCase()`
-- [ ] `orElse` com valor padrão apropriado
-- [ ] Tratamento de valores null/inválidos
-
-**Documentação:**
-- [ ] Descrição clara do propósito do enum
-- [ ] Contexto de uso na aplicação
-- [ ] Documentação das propriedades
-- [ ] Exemplos quando necessário
-
-**Qualidade:**
-- [ ] Valores bem definidos e finitos
-- [ ] Nomes descritivos para cada valor
-- [ ] Mapeamento consistente API ↔ Enum
-- [ ] Testes unitários para serialização
-
----
-
-## 🎯 Diretrizes para Enums
-
-### ✅ Boas Práticas
+### 3. **Serialização Segura**
 
 ```dart
-// ✅ Nomenclatura clara e consistente
-enum UserAccountType {
-  individual(name: 'Pessoa Física', toJson: 'INDIVIDUAL'),
-  business(name: 'Pessoa Jurídica', toJson: 'BUSINESS'),
-}
-
-// ✅ Propriedades úteis para o domínio
-enum SubscriptionPlanType {
-  basic(name: 'Básico', toJson: 'BASIC', price: 9.90, features: 10),
-  premium(name: 'Premium', toJson: 'PREMIUM', price: 19.90, features: 50),
-  enterprise(name: 'Enterprise', toJson: 'ENTERPRISE', price: 49.90, features: -1),
-}
-
-// ✅ Fallback sensato no fromJson
-static UserAccountType fromJson(String? type) {
-  return UserAccountType.values.firstWhere(
-    (e) => e.toJson == type?.toUpperCase(),
-    orElse: () => UserAccountType.individual, // padrão mais comum
-  );
-}
-
-// ✅ Métodos utilitários quando apropriado
-static List<PaymentMethodType> get digitalMethods {
-  return values.where((e) => e.isDigital).toList();
-}
-```
-
-### ❌ Evitar
-
-```dart
-// ❌ Nomes genéricos ou confusos
-enum Type1 { value1, value2, value3 }
-enum UserStuff { thing1, thing2 }
-
-// ❌ Valores mutáveis
-enum StatusType {
-  active(name: 'Ativo', toJson: 'ACTIVE');
-  
-  StatusType({required this.name, required this.toJson});
-  
-  String name; // sem final - mutável
-  String toJson; // sem final - mutável
-}
-
-// ❌ fromJson sem tratamento de erro
-static StatusType fromJson(String type) {
-  return StatusType.values.firstWhere((e) => e.toJson == type); // pode gerar exception
-}
-
-// ❌ Valores de API inconsistentes
-enum StatusType {
-  active(name: 'Ativo', toJson: 'ativo'),      // minúscula
-  inactive(name: 'Inativo', toJson: 'INACTIVE'), // maiúscula
-  pending(name: 'Pendente', toJson: 'Pend'),     // abreviação
-}
-```
-
----
-
-## 🚀 Uso em Entities e Models
-
-### Em Entities
-```dart
+// Em uma Entity
 class UserEntity {
   const UserEntity({
-    required this.id,
     required this.name,
-    required this.gender,
-    // ...
+    required this.status,
   });
 
-  final String id;
   final String name;
-  final UserGenderType gender; // Enum como tipo
-
-  // Métodos que usam o enum
-  bool get isMale => gender == UserGenderType.male;
-  bool get isFemale => gender == UserGenderType.female;
+  final UserStatus status;
 }
+
+// Serialização (Entity → JSON)
+final json = {
+  'name': user.name,
+  'status': user.status.toJson,  // 'ACTIVE'
+};
+
+// Deserialização (JSON → Entity)
+final user = UserEntity(
+  name: json['name'],
+  status: UserStatus.fromJson(json['status']),  // Sempre retorna valor válido
+);
 ```
 
-### Em Models
-```dart
-class UserModel extends UserEntity with EquatableMixin {
-  // Serialização para API
-  Map<String, dynamic> get toMap => {
-    'id': id,
-    'name': name,
-    'gender': gender.toJson, // Conversão para API
-    // ...
-  };
+---
 
-  // Deserialização da API
-  static UserModel fromMap(Map<String, dynamic> map) {
-    return UserModel(
-      id: map['id'],
-      name: map['name'],
-      gender: UserGenderType.fromJson(map['gender']), // Conversão segura
-      // ...
+## 🎨 Padrões e Convenções
+
+### ✅ Nomenclatura
+
+| Tipo        | Padrão                                     | Exemplo                                     |
+| ----------- | ------------------------------------------ | ------------------------------------------- |
+| **Enum**    | `{Nome}Type` ou `{Nome}Status`             | `UserGenderType`, `UserStatus`              |
+| **Arquivo** | `{nome}_type.dart` ou `{nome}_status.dart` | `user_gender_type.dart`, `user_status.dart` |
+| **Valores** | `camelCase`                                | `active`, `inProgress`, `waitingFor`        |
+
+### ✅ Estrutura Padrão
+
+```dart
+enum UserStatus {
+  // 1. Valores com metadados
+  active(name: 'Ativo', toJson: 'ACTIVE', color: Colors.green),
+  disabled(name: 'Desativado', toJson: 'DISABLED', color: Colors.grey);
+
+  // 2. Constructor const
+  const UserStatus({
+    required this.name,
+    required this.toJson,
+    required this.color,
+  });
+
+  // 3. Campos finais
+  final String name;
+  final String toJson;
+  final Color color;
+
+  // 4. Método fromJson (obrigatório)
+  static UserStatus fromJson(String? type) {
+    return UserStatus.values.firstWhere(
+      (e) => e.toJson == type?.toUpperCase(),
+      orElse: () => UserStatus.active,
     );
   }
+
+  // 5. Métodos auxiliares (opcional)
+  bool get isActive => this == UserStatus.active;
 }
 ```
 
-Esta estrutura garante que os Enums sejam **type-safe**, **bem documentados** e **fáceis de usar** em toda a aplicação! 🎯
+---
+
+## 🔧 Método fromJson - Deserialização Segura
+
+### ✅ Padrão Recomendado
+
+```dart
+static UserStatus fromJson(String? type) {
+  return UserStatus.values.firstWhere(
+    (e) => e.toJson == type?.toUpperCase(),
+    orElse: () => UserStatus.active,  // ⚠️ Sempre defina um padrão seguro
+  );
+}
+```
+
+### 🎯 Características Importantes
+
+1. **Nullable (`String?`)** - Aceita valores nulos da API
+2. **Case insensitive** - Normaliza com `toUpperCase()` ou `toLowerCase()`
+3. **Valor padrão** - `orElse` garante retorno válido (nunca lança exceção)
+4. **Seguro** - Sempre retorna um enum válido, mesmo com dados inválidos
+
+---
+
+## 🎯 Exemplos de Uso
+
+### Comparações e Lógica
+
+```dart
+// Comparação direta
+if (user.status == UserStatus.active) {
+  print('Usuário pode acessar');
+}
+
+// Usando getters auxiliares
+if (user.status.canLogin) {
+  allowAccess();
+}
+
+// Switch expression (exhaustive)
+final message = switch (user.status) {
+  UserStatus.active => 'Bem-vindo!',
+  UserStatus.disabled => 'Conta suspensa',
+  UserStatus.deleted => 'Conta removida',
+  UserStatus.all => 'Visualizando todos',
+};
+```
+
+### Usando Metadados na UI
+
+```dart
+// Acessar nome legível
+Text(user.status.name);  // 'Ativo'
+
+// Usar cor do status
+Container(
+  decoration: BoxDecoration(
+    color: user.status.color,
+    borderRadius: BorderRadius.circular(8),
+  ),
+  child: Text(user.status.name),
+);
+
+// Listar todos os valores (ex: dropdown)
+DropdownButton<UserStatus>(
+  items: UserStatus.values.map((status) {
+    return DropdownMenuItem(
+      value: status,
+      child: Row(
+        children: [
+          Icon(Icons.circle, color: status.color, size: 12),
+          SizedBox(width: 8),
+          Text(status.name),
+        ],
+      ),
+    );
+  }).toList(),
+  onChanged: (value) => setState(() => selectedStatus = value),
+);
+```
+
+---
+
+## 📋 Checklist de Implementação
+
+Ao criar um novo Enum, verifique:
+
+- [ ] **Nomenclatura** segue padrão (`{Nome}Type` ou `{Nome}Status`)
+- [ ] **Constructor `const`** implementado
+- [ ] **Campo `name`** (nome legível) presente
+- [ ] **Campo `toJson`** (serialização) presente
+- [ ] **Método `fromJson`** com `orElse` e valor padrão seguro
+- [ ] **Case handling** consistente com API (upper/lower)
+- [ ] **Metadados extras** (color, icon) quando necessário para UI
+- [ ] **Métodos auxiliares** (getters) quando úteis
+- [ ] **Todos os switches** usam pattern matching para exhaustiveness
+
+---
+
+## 🚀 Benefícios dos Enums Modernos
+
+### ✅ Exhaustiveness Checking
+
+```dart
+// Adicionar novo valor ao enum
+enum UserStatus {
+  active(...),
+  disabled(...),
+  deleted(...),
+  suspended(...),  // ⬅️ Novo valor adicionado
+}
+
+// ⚠️ Compilador vai FORÇAR você a atualizar todos os switches!
+String getMessage(UserStatus status) {
+  return switch (status) {
+    UserStatus.active => '...',
+    UserStatus.disabled => '...',
+    UserStatus.deleted => '...',
+    // ❌ ERRO: Missing case: UserStatus.suspended
+  };
+}
+```
+
+### ✅ Segurança de Tipo
+
+```dart
+// ❌ String - Qualquer valor aceito (perigoso)
+final String status = 'ACTIVO';  // Typo não detectado!
+
+// ✅ Enum - Apenas valores válidos
+final UserStatus status = UserStatus.active;  // Seguro e tipado
+```
+
+### ✅ Refatoração Segura
+
+- Renomear um valor atualiza todas as referências automaticamente
+- IDE mostra todos os usos do enum
+- Autocomplete sugere apenas valores válidos
+
+---
+
+## 🔗 Próximos Passos
+
+1. **[Usar em Entities](./entities.md)** - Substituir Strings por Enums
+2. **[Criar Failures](./failures.md)** - Tipos de erro específicos do domínio
+3. **[Definir Repository Interfaces](./i_repositories.md)** - Contratos de acesso aos dados
+
+---
+
+_Enums modernos do Dart garantem segurança em tempo de compilação. Use exhaustiveness checking para evitar bugs ao adicionar novos valores._

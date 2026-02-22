@@ -1,452 +1,472 @@
-# 📦 Domain Layer - Entities
+# Entities - Domain Layer
 
-## 🎯 O que são Entities?
+## 📋 O que são Entities?
 
-**Entities** são objetos de negócio puros que representam conceitos fundamentais do domínio. Elas carregam dados e regras de negócio básicas, sem dependências externas.
+**Entities** são objetos de negócio puros que representam conceitos fundamentais do domínio da aplicação. Elas carregam dados e regras de negócio básicas, mantendo-se completamente independentes de frameworks, bibliotecas externas ou detalhes de implementação.
 
-### Responsabilidades
-- ✅ Representar objetos de negócio do domínio
-- ✅ Carregar dados estruturados e tipados
-- ✅ Garantir imutabilidade através de `final` fields
-- ✅ Fornecer método `copyWith` para atualizações imutáveis
-- ✅ Validações básicas com `assert` (quando necessário)
+### 🎯 Responsabilidades
 
-### Não Responsabilidades
-- ❌ Lógica de persistência (isso é do Repository)
-- ❌ Serialização JSON (isso é do Model na camada Infra)
-- ❌ Comunicação com APIs (isso é do DataSource)
-- ❌ Regras de negócio complexas (isso é do UseCase)
+**✅ O que Entities FAZEM:**
 
----
+- Representam **conceitos de negócio** (User, Address, Product, etc.)
+- Carregam **dados estruturados** com tipagem forte
+- Implementam **imutabilidade** através de `const` constructors
+- Fornecem método **copyWith** para criar cópias modificadas
+- Definem **validações básicas** através de `assert` (quando necessário)
+- Compõem outras entities para criar **objetos complexos**
 
-## 📋 Padrão de Nomenclatura
+**❌ O que Entities NÃO FAZEM:**
 
-### Convenção de Nomes
-```
-[NomeDoConceito]Entity
-```
-
-### Exemplos
-- `UserEntity` → arquivo: `user_entity.dart`
-- `ProductEntity` → arquivo: `product_entity.dart`
-- `AddressEntity` → arquivo: `address_entity.dart`
-- `DistributorEntity` → arquivo: `distributor_entity.dart`
-- `BankDataEntity` → arquivo: `bank_data_entity.dart`
+- Não contêm lógica de serialização/deserialização (fica nos Models)
+- Não dependem de frameworks externos (Dio, HTTP, etc.)
+- Não implementam comunicação com APIs ou databases
+- Não contêm lógica de apresentação ou formatação de UI
+- Não herdam de classes externas (exceto quando necessário para composição)
 
 ---
 
-## 🏗️ Estrutura Padrão de uma Entity
+## 🏗️ Exemplo Completo: UserEntity
 
-### Template Base
+Este exemplo único demonstra **todos os cenários comuns** que você encontrará:
+
 ```dart
-class [Nome]Entity {
-  const [Nome]Entity({
-    required this.campo1,
-    required this.campo2,
-    // ... outros campos
-  });
-
-  final TipoCampo1 campo1;
-  final TipoCampo2 campo2;
-  // ... outros campos
-
-  [Nome]Entity copyWith({
-    TipoCampo1? campo1,
-    TipoCampo2? campo2,
-    // ... outros campos
-  }) {
-    return [Nome]Entity(
-      campo1: campo1 ?? this.campo1,
-      campo2: campo2 ?? this.campo2,
-      // ... outros campos
-    );
-  }
-}
-```
-
----
-
-## 📝 Como Criar Entities a partir de JSON
-
-### Passo 1: Analisar o JSON
-Dado um JSON de resposta da API:
-
-```json
-{
-  "id": "123",
-  "name": "João Silva",
-  "email": "joao@example.com",
-  "phoneNumber": "+5511999999999",
-  "createdAt": "2025-01-15T10:30:00Z"
-}
-```
-
-### Passo 2: Identificar os Campos e Tipos
-| Campo JSON | Tipo Dart | Campo Entity |
-|------------|-----------|--------------|
-| `id` | `String` | `id` |
-| `name` | `String` | `name` |
-| `email` | `String` | `email` |
-| `phoneNumber` | `String` | `phoneNumber` |
-| `createdAt` | `DateTime` | `createdAt` |
-
-### Passo 3: Criar a Entity
-```dart
-class UserEntity {
-  const UserEntity({
-    required this.id,
-    required this.name,
-    required this.email,
-    required this.phoneNumber,
-    required this.createdAt,
-  });
-
-  final String id;
-  final String name;
-  final String email;
-  final String phoneNumber;
-  final DateTime createdAt;
-
-  UserEntity copyWith({
-    String? id,
-    String? name,
-    String? email,
-    String? phoneNumber,
-    DateTime? createdAt,
-  }) {
-    return UserEntity(
-      id: id ?? this.id,
-      name: name ?? this.name,
-      email: email ?? this.email,
-      phoneNumber: phoneNumber ?? this.phoneNumber,
-      createdAt: createdAt ?? this.createdAt,
-    );
-  }
-}
-```
-
----
-
-## 🔗 Entities Compostas (Nested Objects)
-
-### JSON com Objetos Aninhados
-```json
-{
-  "id": "123",
-  "name": "João Silva",
-  "address": {
-    "street": "Rua A",
-    "city": "São Paulo",
-    "state": "SP",
-    "zipCode": "01234-567"
-  }
-}
-```
-
-### Criar Entity Separada para Objeto Aninhado
-```dart
-// address_entity.dart
-class AddressEntity {
-  const AddressEntity({
-    required this.street,
-    required this.city,
-    required this.state,
-    required this.zipCode,
-  });
-
-  final String street;
-  final String city;
-  final String state;
-  final String zipCode;
-
-  AddressEntity copyWith({
-    String? street,
-    String? city,
-    String? state,
-    String? zipCode,
-  }) {
-    return AddressEntity(
-      street: street ?? this.street,
-      city: city ?? this.city,
-      state: state ?? this.state,
-      zipCode: zipCode ?? this.zipCode,
-    );
-  }
-}
-```
-
-### Entity Principal Referenciando a Entity Aninhada
-```dart
-// user_entity.dart
-import 'address_entity.dart';
-
-class UserEntity {
-  const UserEntity({
-    required this.id,
-    required this.name,
-    required this.address,
-  });
-
-  final String id;
-  final String name;
-  final AddressEntity address;
-
-  UserEntity copyWith({
-    String? id,
-    String? name,
-    AddressEntity? address,
-  }) {
-    return UserEntity(
-      id: id ?? this.id,
-      name: name ?? this.name,
-      address: address ?? this.address,
-    );
-  }
-}
-```
-
----
-
-## 📚 Exemplos Práticos do Projeto
-
-### Exemplo 1: Entity Simples - AddressEntity
-```dart
-class AddressEntity {
-  AddressEntity({
-    required this.city,
-    required this.state,
-    required this.street,
-    required this.number,
-    required this.country,
-    required this.complement,
-    required this.postalCode,
-    required this.neighborhood,
-  });
-
-  final String city;
-  final String state;
-  final String street;
-  final String number;
-  final String country;
-  final String complement;
-  final String postalCode;
-  final String neighborhood;
-
-  AddressEntity copyWith({
-    String? city,
-    String? state,
-    String? street,
-    String? number,
-    String? country,
-    String? complement,
-    String? postalCode,
-    String? neighborhood,
-  }) {
-    return AddressEntity(
-      city: city ?? this.city,
-      state: state ?? this.state,
-      street: street ?? this.street,
-      number: number ?? this.number,
-      country: country ?? this.country,
-      complement: complement ?? this.complement,
-      postalCode: postalCode ?? this.postalCode,
-      neighborhood: neighborhood ?? this.neighborhood,
-    );
-  }
-}
-```
-
-### Exemplo 2: Entity Composta - UserEntity
-```dart
+import '../enums/user_status.dart';
 import '../enums/user_gender_type.dart';
 import 'address_entity.dart';
-import 'user_company_entity.dart';
-import 'user_role_entity.dart';
 
 class UserEntity {
   const UserEntity({
     required this.id,
-    required this.cpf,
     required this.name,
     required this.email,
-    required this.phone,
+    required this.cpf,
     required this.birth,
+    required this.status,
     required this.gender,
+    required this.isActive,
+    required this.score,
     required this.address,
-    required this.role,
-    required this.company,
+    required this.tags,
+    this.phone,
+    this.lastLoginAt,
   });
 
+  // 1. String - Dados textuais simples
   final String id;
-  final String cpf;
   final String name;
   final String email;
-  final String phone;
+  final String cpf;
+
+  // 2. String? - Dados opcionais (nullable)
+  final String? phone;
+
+  // 3. DateTime - Datas obrigatórias
   final DateTime birth;
-  final UserGenderType gender;
+
+  // 4. DateTime? - Datas opcionais
+  final DateTime? lastLoginAt;
+
+  // 5. Enum - Valores constantes tipados
+  final UserStatus status;          // active, inactive, blocked
+  final UserGenderType gender;      // male, female, other
+
+  // 6. bool - Flags booleanas
+  final bool isActive;
+
+  // 7. int/double - Valores numéricos
+  final double score;
+
+  // 8. Entity - Composição com outras entities
   final AddressEntity address;
-  final UserRoleEntity role;
-  final UserCompanyEntity company;
+
+  // 9. List - Coleções de dados
+  final List<String> tags;
 
   UserEntity copyWith({
     String? id,
-    String? cpf,
     String? name,
     String? email,
+    String? cpf,
     String? phone,
     DateTime? birth,
+    DateTime? lastLoginAt,
+    UserStatus? status,
     UserGenderType? gender,
+    bool? isActive,
+    double? score,
     AddressEntity? address,
-    UserRoleEntity? role,
-    UserCompanyEntity? company,
+    List<String>? tags,
   }) {
     return UserEntity(
       id: id ?? this.id,
-      cpf: cpf ?? this.cpf,
       name: name ?? this.name,
       email: email ?? this.email,
+      cpf: cpf ?? this.cpf,
       phone: phone ?? this.phone,
       birth: birth ?? this.birth,
+      lastLoginAt: lastLoginAt ?? this.lastLoginAt,
+      status: status ?? this.status,
       gender: gender ?? this.gender,
+      isActive: isActive ?? this.isActive,
+      score: score ?? this.score,
       address: address ?? this.address,
-      role: role ?? this.role,
-      company: company ?? this.company,
+      tags: tags ?? this.tags,
     );
   }
 }
 ```
 
-### Exemplo 3: Entity com Múltiplos Objetos Aninhados - DistributorEntity
-```dart
-import 'address_entity.dart';
-import 'bank_data_entity.dart';
+### 🔑 Elementos Essenciais
 
-class DistributorEntity {
-  DistributorEntity({
+1. **Constructor `const`**: Permite imutabilidade e otimização de memória
+2. **Campos `final`**: Garante que os dados não sejam modificados após criação
+3. **Named parameters `required`**: Torna explícito quais dados são obrigatórios
+4. **Nullable (`?`)**: Para campos opcionais que podem ser nulos
+5. **Método `copyWith`**: Permite criar cópias modificadas mantendo imutabilidade
+6. **Tipagem forte**: Usa tipos específicos (Enums, Entities, DateTime, bool, etc.)
+
+---
+
+## 🎯 Tipos de Dados Comuns
+
+### 1. **String** - Dados Textuais
+
+```dart
+final String id;
+final String name;
+final String email;
+```
+
+**Use para:** IDs, nomes, emails, CPF, telefones, descrições.
+
+### 2. **String?** - Dados Opcionais
+
+```dart
+final String? phone;
+final String? middleName;
+```
+
+**Use para:** Campos que podem não existir (telefone opcional, nome do meio, etc.).
+
+### 3. **DateTime** - Datas Obrigatórias
+
+```dart
+final DateTime birth;
+final DateTime createdAt;
+```
+
+**Use para:** Datas de nascimento, criação, atualização.
+
+### 4. **DateTime?** - Datas Opcionais
+
+```dart
+final DateTime? lastLoginAt;
+final DateTime? deletedAt;
+```
+
+**Use para:** Último login, data de exclusão, datas que podem não existir.
+
+### 5. **Enum** - Valores Constantes
+
+```dart
+final UserStatus status;        // active, inactive, blocked
+final UserGenderType gender;    // male, female, other
+```
+
+**Use para:** Status, tipos, categorias - evita "strings mágicas".
+
+### 6. **bool** - Flags Booleanas
+
+```dart
+final bool isActive;
+final bool isVerified;
+final bool hasAcceptedTerms;
+```
+
+**Use para:** Flags de estado (ativo/inativo, verificado/não verificado).
+
+### 7. **int / double** - Valores Numéricos
+
+```dart
+final int age;
+final double score;
+final double balance;
+```
+
+**Use para:** Idades, pontuações, valores monetários, contadores.
+
+### 8. **Entity** - Composição
+
+```dart
+final AddressEntity address;
+final CompanyEntity company;
+```
+
+**Use para:** Objetos complexos que são entities por si só.
+
+### 9. **List** - Coleções
+
+```dart
+final List<String> tags;
+final List<String> permissions;
+final List<OrderEntity> orders;
+```
+
+**Use para:** Múltiplos valores (tags, permissões, lista de pedidos).
+
+---
+
+## 🎨 Padrões e Convenções
+
+### ✅ Nomenclatura
+
+| Tipo            | Padrão                      | Exemplo                                   |
+| --------------- | --------------------------- | ----------------------------------------- |
+| **Classe**      | `{Nome}Entity`              | `UserEntity`, `AddressEntity`             |
+| **Arquivo**     | `{nome}_entity.dart`        | `user_entity.dart`, `address_entity.dart` |
+| **Campos**      | `camelCase`                 | `firstName`, `birthDate`, `isActive`      |
+| **Constructor** | `const {Nome}Entity({...})` | `const UserEntity({...})`                 |
+
+### ✅ Organização de Imports
+
+```dart
+// 1. Enums do domain
+import '../enums/user_status.dart';
+import '../enums/user_gender_type.dart';
+
+// 2. Outras entities do domain
+import 'address_entity.dart';
+import 'company_entity.dart';
+
+// ❌ NUNCA importar de outras camadas
+// import '../../infra/models/user_model.dart';  // ERRADO!
+// import 'package:dio/dio.dart';                 // ERRADO!
+```
+
+### ✅ Ordem dos Elementos na Classe
+
+```dart
+class UserEntity {
+  // 1. Constructor
+  const UserEntity({...});
+
+  // 2. Campos (agrupados por tipo/contexto)
+  final String id;
+  final String name;
+
+  final UserStatus status;
+  final UserGenderType gender;
+
+  final AddressEntity address;
+
+  // 3. Método copyWith
+  UserEntity copyWith({...}) {...}
+
+  // 4. Getters/métodos auxiliares (se necessário)
+  // bool get isActive => status == UserStatus.active;
+}
+```
+
+---
+
+## 🔧 Validações (Quando Usar)
+
+### ✅ Validações Simples com Assert
+
+```dart
+class UserEntity {
+  const UserEntity({
     required this.id,
-    required this.cnpj,
-    required this.name,
-    required this.email,
-    required this.phoneNumber,
-    required this.uniqueCode,
-    required this.address,
-    required this.bankData,
-    required this.stage,
-    required this.status,
-    required this.dateStatus,
-  });
+    required this.age,
+  }) : assert(age >= 0, 'Age must be non-negative'),
+       assert(id.length > 0, 'ID cannot be empty');
 
   final String id;
-  final String cnpj;
-  final String name;
+  final int age;
+}
+```
+
+**Use para:** Validações simples que garantem consistência básica dos dados.
+
+### ❌ Validações Complexas (Evitar)
+
+```dart
+// ❌ EVITAR: Validações complexas na Entity
+class UserEntity {
+  const UserEntity({required this.email}) {
+    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email)) {
+      throw Exception('Invalid email');
+    }
+  }
+
   final String email;
-  final String phoneNumber;
-  final String uniqueCode;
+}
+```
+
+**Por quê evitar?**
+
+- Validações complexas devem ficar nos **UseCases** ou **Value Objects**
+- Entities devem ser simples e focadas em carregar dados
+- Facilita testes e manutenção
+
+---
+
+## � Exemplos de Uso
+
+### Criando uma Entity
+
+```dart
+final user = UserEntity(
+  id: '123',
+  name: 'João Silva',
+  email: 'joao@example.com',
+  cpf: '123.456.789-00',
+  phone: '(11) 98765-4321',
+  birth: DateTime(1990, 5, 15),
+  lastLoginAt: DateTime.now(),
+  status: UserStatus.active,
+  gender: UserGenderType.male,
+  isActive: true,
+  score: 95.5,
+  address: AddressEntity(
+    street: 'Rua das Flores',
+    number: '123',
+    city: 'São Paulo',
+    state: 'SP',
+    postalCode: '01234-567',
+    country: 'Brasil',
+    neighborhood: 'Centro',
+    complement: 'Apto 45',
+  ),
+  tags: ['premium', 'verified'],
+);
+```
+
+### Modificando com copyWith
+
+```dart
+// Atualizar apenas o status
+final updatedUser = user.copyWith(
+  status: UserStatus.inactive,
+);
+
+// Atualizar múltiplos campos
+final modifiedUser = user.copyWith(
+  name: 'João Pedro Silva',
+  email: 'joaopedro@example.com',
+  phone: '(11) 91234-5678',
+  lastLoginAt: DateTime.now(),
+);
+
+// Remover campo opcional (setar como null)
+final userWithoutPhone = user.copyWith(
+  phone: null,
+);
+```
+
+### Composição de Entities
+
+```dart
+// Entity que compõe outras entities
+final session = SessionEntity(
+  user: user,
+  token: TokenEntity(
+    accessToken: 'abc123...',
+    refreshToken: 'xyz789...',
+    expiresAt: DateTime.now().add(Duration(hours: 1)),
+  ),
+);
+```
+
+---
+
+## 📋 Checklist de Implementação
+
+Ao criar uma nova Entity, verifique:
+
+- [ ] **Constructor `const`** implementado
+- [ ] **Todos os campos são `final`**
+- [ ] **Named parameters com `required`** para campos obrigatórios
+- [ ] **Nullable (`?`)** para campos opcionais
+- [ ] **Método `copyWith`** implementado corretamente
+- [ ] **Imports apenas do domain** (enums, outras entities)
+- [ ] **Nomenclatura segue padrão** (`{Nome}Entity`)
+- [ ] **Arquivo nomeado corretamente** (`{nome}_entity.dart`)
+- [ ] **Tipagem forte** (Enums ao invés de Strings quando apropriado)
+- [ ] **Sem dependências externas** (frameworks, libs)
+- [ ] **Sem lógica de serialização** (fica nos Models)
+
+---
+
+## 🚀 Benefícios das Entities Puras
+
+### ✅ Testabilidade
+
+```dart
+// Fácil criar instâncias para testes
+final testUser = UserEntity(
+  id: 'test-123',
+  name: 'Test User',
+  email: 'test@example.com',
+  cpf: '000.000.000-00',
+  birth: DateTime(1990, 1, 1),
+  status: UserStatus.active,
+  gender: UserGenderType.male,
+  isActive: true,
+  score: 100.0,
+  address: testAddress,
+  tags: ['test'],
+);
+
+// Fácil verificar igualdade
+expect(user.id, equals('test-123'));
+expect(user.name, equals('Test User'));
+```
+
+### ✅ Imutabilidade
+
+```dart
+// Não é possível modificar acidentalmente
+user.name = 'Outro Nome';  // ❌ Erro de compilação!
+
+// Modificações são explícitas e criam novas instâncias
+final newUser = user.copyWith(name: 'Outro Nome');  // ✅ Correto
+```
+
+### ✅ Reutilização
+
+```dart
+// AddressEntity pode ser usada em múltiplos contextos
+class UserEntity {
   final AddressEntity address;
-  final BankDataEntity bankData;
-  final String stage;
-  final String status;
-  final DateTime dateStatus;
+}
 
-  DistributorEntity copyWith({
-    String? id,
-    String? cnpj,
-    String? name,
-    String? email,
-    String? phoneNumber,
-    String? uniqueCode,
-    AddressEntity? address,
-    BankDataEntity? bankData,
-    String? stage,
-    String? status,
-    DateTime? dateStatus,
-  }) {
-    return DistributorEntity(
-      id: id ?? this.id,
-      cnpj: cnpj ?? this.cnpj,
-      name: name ?? this.name,
-      email: email ?? this.email,
-      phoneNumber: phoneNumber ?? this.phoneNumber,
-      uniqueCode: uniqueCode ?? this.uniqueCode,
-      address: address ?? this.address,
-      bankData: bankData ?? this.bankData,
-      stage: stage ?? this.stage,
-      status: status ?? this.status,
-      dateStatus: dateStatus ?? this.dateStatus,
-    );
-  }
+class CompanyEntity {
+  final AddressEntity address;
+}
+
+class DistributorEntity {
+  final AddressEntity address;
 }
 ```
 
----
+### ✅ Manutenibilidade
 
-## ✅ Checklist para Criar uma Entity
-
-- [ ] Nome segue padrão `[Nome]Entity`
-- [ ] Arquivo segue padrão `[nome]_entity.dart`
-- [ ] Todos os campos são `final`
-- [ ] Constructor usa `required` para campos obrigatórios
-- [ ] Constructor é `const` quando possível
-- [ ] Método `copyWith` implementado para todos os campos
-- [ ] Imports apenas de outras entities, enums ou value objects do domain
-- [ ] Sem lógica de serialização (JSON)
-- [ ] Sem dependências externas (packages)
-- [ ] Tipos primitivos ou outras entities do domain
+- Mudanças em uma Entity não afetam outras camadas
+- Fácil adicionar novos campos sem quebrar código existente
+- Código limpo e fácil de entender
 
 ---
 
-## 🚫 Anti-Patterns - O que NÃO fazer
+## 🔗 Próximos Passos
 
-### ❌ Não adicionar serialização JSON
-```dart
-// ❌ ERRADO - Entity não deve ter fromJson/toJson
-class UserEntity {
-  factory UserEntity.fromJson(Map<String, dynamic> json) { ... }
-  Map<String, dynamic> toJson() { ... }
-}
-```
+Após criar suas Entities, você pode:
 
-### ❌ Não adicionar lógica de negócio complexa
-```dart
-// ❌ ERRADO - Lógica complexa deve estar no UseCase
-class UserEntity {
-  bool canPurchase() {
-    // lógica complexa aqui
-  }
-}
-```
-
-### ❌ Não usar campos mutáveis
-```dart
-// ❌ ERRADO - Campos devem ser final
-class UserEntity {
-  String name; // sem final
-}
-```
-
-### ❌ Não importar packages externos
-```dart
-// ❌ ERRADO - Entity não deve depender de packages externos
-import 'package:dio/dio.dart';
-import '../infra/models/user_model.dart';
-```
+1. **[Definir Enums](./enums.md)** - Valores constantes usados nas Entities
+2. **[Criar Failures](./failures.md)** - Tipos de erro específicos do domínio
+3. **[Definir Repository Interfaces](./i_repositories.md)** - Contratos de acesso aos dados
+4. **[Definir UseCase Interfaces](./i_usecases.md)** - Contratos de operações de negócio
 
 ---
 
-## 🎯 Regras de Ouro
-
-1. **Imutabilidade**: Todos os campos são `final`
-2. **Pureza**: Sem dependências externas, apenas domain
-3. **Simplicidade**: Apenas dados e copyWith
-4. **Tipagem Forte**: Use tipos específicos (DateTime, Enums, outras Entities)
-5. **Nomenclatura**: Sempre `[Nome]Entity` e `[nome]_entity.dart`
-
----
-
-## 📖 Próximos Passos
-
-Após criar a Entity no Domain:
-1. Criar o Model correspondente na camada Infra (com fromJson/toJson)
-2. Criar Failures específicas se necessário
-3. Criar Repository Interface que usa a Entity
-4. Criar UseCase Interface que usa a Entity
+_Entities são a base do seu domínio. Mantenha-as puras, simples e focadas em representar conceitos de negócio._
