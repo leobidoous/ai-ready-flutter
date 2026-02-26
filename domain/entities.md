@@ -267,6 +267,93 @@ class UserEntity {
 }
 ```
 
+### ✅ Organização Estética de Parâmetros
+
+**IMPORTANTE**: Para manter consistência visual e facilitar leitura, organize os parâmetros do menor para o maior número de caracteres na linha.
+
+```dart
+// ✅ CORRETO - Organizado por tamanho de linha (menor → maior)
+class UserEntity {
+  const UserEntity({
+    this.phone,              // 16 chars - opcional primeiro
+    required this.id,        // 21 chars
+    required this.name,      // 23 chars
+    required this.email,     // 24 chars
+    required this.birth,     // 24 chars
+    required this.status,    // 25 chars
+    required this.gender,    // 25 chars
+    required this.address,   // 26 chars
+    required this.isActive,  // 27 chars
+  });
+
+  final String? phone;
+  final String id;
+  final String name;
+  final String email;
+  final DateTime birth;
+  final UserStatus status;
+  final UserGenderType gender;
+  final AddressEntity address;
+  final bool isActive;
+}
+
+// ❌ EVITAR - Sem organização visual
+class UserEntity {
+  const UserEntity({
+    required this.address,
+    required this.id,
+    required this.isActive,
+    this.phone,
+    required this.name,
+    required this.email,
+    required this.birth,
+    required this.status,
+    required this.gender,
+  });
+}
+```
+
+**Regras de Organização:**
+
+1. **Parâmetros opcionais primeiro** (sem `required`)
+2. **Depois parâmetros obrigatórios** ordenados por tamanho de linha
+3. **Contar caracteres da linha completa** incluindo `required`, nome do parâmetro e tipo
+4. **Aplicar em**: constructors, métodos `copyWith`, `fromEntity`, `fromJson`, `toMap`
+
+**Exemplo com copyWith:**
+
+```dart
+// ✅ CORRETO - Organizado por tamanho
+UserEntity copyWith({
+  String? id,              // menor
+  String? name,
+  String? email,
+  String? phone,
+  DateTime? birth,
+  UserStatus? status,
+  UserGenderType? gender,
+  AddressEntity? address,  // maior
+}) {
+  return UserEntity(
+    id: id ?? this.id,
+    name: name ?? this.name,
+    email: email ?? this.email,
+    phone: phone ?? this.phone,
+    birth: birth ?? this.birth,
+    status: status ?? this.status,
+    gender: gender ?? this.gender,
+    address: address ?? this.address,
+  );
+}
+```
+
+**Benefícios:**
+
+- ✅ Código visualmente mais limpo e organizado
+- ✅ Facilita identificar parâmetros rapidamente
+- ✅ Padrão consistente em toda a codebase
+- ✅ Melhora legibilidade em code reviews
+
 ---
 
 ## 🔧 Validações (Quando Usar)
