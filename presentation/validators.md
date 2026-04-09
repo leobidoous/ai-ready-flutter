@@ -213,7 +213,7 @@ class _IncomeReportPageState extends State<IncomeReportPage> {
   ];
 
   List<String? Function(String?)> get userValidators => [
-    if (_user.role.type == .dcGeneral)
+    if (_user.role.type == .admin)
       (input) => FormValidators.emptyField(input, 'Usuário'),
   ];
 
@@ -346,7 +346,7 @@ List<String? Function(String?)> get roleValidators => [
 
 // Aplicar apenas se usuário for admin
 List<String? Function(String?)> get userValidators => [
-  if (_user.role.type == .dcGeneral)
+  if (_user.role.type == .admin)
     (input) => FormValidators.emptyField(input, 'Usuário'),
 ];
 ```
@@ -380,7 +380,7 @@ class _IncomeReportPageState extends State<IncomeReportPage> {
   ];
 
   List<String? Function(String?)> get userValidators => [
-    if (_user.role.type == .dcGeneral)
+    if (_user.role.type == .admin)
       (input) => FormValidators.emptyField(input, 'Usuário'),
   ];
 
@@ -450,7 +450,7 @@ class _IncomeReportPageState extends State<IncomeReportPage> {
               crossAxisAlignment: .stretch,
               children: [
                 // Dropdown de distribuidor (apenas para admin)
-                if (<UserRoleType>[.dcGeneral].contains(_user.role.type)) ...[
+                if (<UserRoleType>[.admin].contains(_user.role.type)) ...[
                   SelectDistributorDropdown(
                     key: ValueKey(_distributorSelected),
                     distributorsSelected: [_distributorSelected],
@@ -539,7 +539,7 @@ class _UpsertUserPageState extends State<UpsertUserPage> {
     }
 
     // Remover foco dos campos
-    FocusScope.of(context).requestFocus(FocusNode());
+    FocusScope.of(context).requestScopeFocus();
 
     // Submeter formulário
     if (widget.userId.isEmpty) {

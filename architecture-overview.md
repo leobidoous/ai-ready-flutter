@@ -650,17 +650,17 @@ class UserModule extends Module {
   void routes(RouteManager r) {
     r.child(
       UserRoutes.profile.path,
-      transition: TransitionType.fadeIn,
+      transition: .fadeIn,
       child: (_) => const UserProfilePage(),
     );
 
     r.child(
       UserRoutes.edit.path,
-      transition: TransitionType.fadeIn,
+      transition: .fadeIn,
       child: (_) => const UserEditPage(),
       guards: [
         UserRoleTypeRouterGuard(
-          roles: <UserRoleType>[.dcGeneral, .dcCommercial],
+          roles: <UserRoleType>[.admin, .director],
           redirectTo: UserRoutes.profile.completePath,
         ),
       ],

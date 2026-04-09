@@ -62,17 +62,17 @@ class UserModule extends Module {
   void routes(RouteManager r) {
     r.child(
       UserRoutes.profile.path,
-      transition: TransitionType.fadeIn,
+      transition: .fadeIn,
       child: (_) => const UserProfilePage(),
     );
 
     r.child(
       UserRoutes.edit.path,
-      transition: TransitionType.fadeIn,
+      transition: .fadeIn,
       child: (_) => const UserEditPage(),
       guards: [
         UserRoleTypeRouterGuard(
-          roles: <UserRoleType>[.dcGeneral, .dcCommercial],
+          roles: <UserRoleType>[.admin, .director],
           redirectTo: UserRoutes.profile.completePath,
         ),
       ],
@@ -80,11 +80,11 @@ class UserModule extends Module {
 
     r.child(
       UserRoutes.list.path,
-      transition: TransitionType.fadeIn,
+      transition: .fadeIn,
       child: (_) => const UsersListPage(),
       guards: [
         UserRoleTypeRouterGuard(
-          roles: <UserRoleType>[.dcGeneral],
+          roles: <UserRoleType>[.admin],
           redirectTo: UserRoutes.profile.completePath,
         ),
       ],
@@ -159,7 +159,7 @@ i.add<Interface>(Implementation.new);
 ```dart
 r.child(
   UserRoutes.profile.path,
-  transition: TransitionType.fadeIn,
+  transition: .fadeIn,
   child: (_) => const UserProfilePage(),
 );
 ```
@@ -169,11 +169,11 @@ r.child(
 ```dart
 r.child(
   UserRoutes.edit.path,
-  transition: TransitionType.fadeIn,
+  transition: .fadeIn,
   child: (_) => const UserEditPage(),
   guards: [
     UserRoleTypeRouterGuard(
-      roles: <UserRoleType>[.dcGeneral, .dcCommercial],
+      roles: <UserRoleType>[.admin, .director],
       redirectTo: UserRoutes.profile.completePath,
     ),
   ],
@@ -185,11 +185,11 @@ r.child(
 ```dart
 r.child(
   UserRoutes.list.path,
-  transition: TransitionType.fadeIn,
+  transition: .fadeIn,
   child: (_) => const UsersListPage(),
   guards: [
     UserRoleTypeRouterGuard(
-      roles: <UserRoleType>[.dcGeneral],
+      roles: <UserRoleType>[.admin],
       redirectTo: UserRoutes.profile.completePath,
     ),
   ],
@@ -239,7 +239,7 @@ UserController(
 
 ```dart
 UserRoleTypeRouterGuard(
-  roles: <UserRoleType>[.dcGeneral, .dcCommercial],
+  roles: <UserRoleType>[.admin, .director],
   redirectTo: UserRoutes.profile.completePath,
 )
 ```
@@ -252,23 +252,23 @@ UserRoleTypeRouterGuard(
 
 ```dart
 // Apenas administradores gerais
-roles: <UserRoleType>[.dcGeneral]
+roles: <UserRoleType>[.admin]
 
 // Administradores e comerciais
-roles: <UserRoleType>[.dcGeneral, .dcCommercial]
+roles: <UserRoleType>[.admin, .director]
 
 // Todos os tipos de usuário
-roles: <UserRoleType>[.dcGeneral, .dcCommercial, .cePj, .cePf]
+roles: <UserRoleType>[.admin, .director, .consultantPj, .consultantPf]
 ```
 
 ## Transições de Rota
 
 ```dart
-TransitionType.fadeIn      // Fade suave
-TransitionType.slideLeft   // Desliza da direita
-TransitionType.slideRight  // Desliza da esquerda
-TransitionType.slideUp     // Desliza de baixo
-TransitionType.slideDown   // Desliza de cima
+.fadeIn      // Fade suave
+.slideLeft   // Desliza da direita
+.slideRight  // Desliza da esquerda
+.slideUp     // Desliza de baixo
+.slideDown   // Desliza de cima
 ```
 
 ## Organização de Imports
