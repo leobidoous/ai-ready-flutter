@@ -122,7 +122,7 @@ class UserEntity {
 2. **Campos `final`**: Garante que os dados não sejam modificados após criação
 3. **Named parameters `required`**: Torna explícito quais dados são obrigatórios
 4. **Nullable (`?`)**: Para campos opcionais que podem ser nulos
-5. **Método `copyWith`**: Permite criar cópias modificadas mantendo imutabilidade
+5. **Método `copyWith`**: OBRIGATÓRIO em todas as entities, mesmo as simples — permite criar cópias modificadas mantendo imutabilidade
 6. **Tipagem forte**: Usa tipos específicos (Enums, Entities, DateTime, bool, etc.)
 
 ---
@@ -475,7 +475,7 @@ Ao criar uma nova Entity, verifique:
 - [ ] **Todos os campos são `final`**
 - [ ] **Named parameters com `required`** para campos obrigatórios
 - [ ] **Nullable (`?`)** para campos opcionais
-- [ ] **Método `copyWith`** implementado corretamente
+- [ ] **Método `copyWith`** implementado (OBRIGATÓRIO em todas as entities)
 - [ ] **Imports apenas do domain** (enums, outras entities)
 - [ ] **Nomenclatura segue padrão** (`{Nome}Entity`)
 - [ ] **Arquivo nomeado corretamente** (`{nome}_entity.dart`)

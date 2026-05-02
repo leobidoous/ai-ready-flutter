@@ -20,6 +20,7 @@
 - Não contêm regras de negócio (ficam nas Entities ou UseCases)
 - Não fazem comunicação externa (isso é DataSource)
 - Não conhecem detalhes de HTTP ou APIs
+- Não montam maps inline para sub-entities — sempre delegam para o sub-model correspondente (usar `SubModel.fromEntity(e).toMap`)
 
 ---
 
@@ -186,13 +187,15 @@ class UserModel extends UserEntity with EquatableMixin {
 
 ### 🔑 Elementos Essenciais
 
+Todos os Models DEVEM ter os seguintes elementos. Nenhum é opcional:
+
 1. **Extends Entity** - Herda todos os campos da Entity
-2. **Mixin EquatableMixin** - Comparação de igualdade
+2. **Mixin EquatableMixin** - Comparação de igualdade (com `props` e `stringify`)
 3. **fromMap** - Deserialização JSON → Model (com tratamento de nulos)
 4. **fromEntity** - Conversão Entity → Model
 5. **toEntity** - Conversão Model → Entity (geralmente `this`)
 6. **toMap** - Serialização completa Model → JSON
-7. **toCreate/toUpdate** - Serializações específicas para operações
+7. **toCreate/toUpdate** - Serializações específicas para operações (quando aplicável)
 8. **props** - Lista de propriedades para Equatable
 
 ---
@@ -641,20 +644,21 @@ class UserModel extends UserEntity with EquatableMixin {
 
 ## 📋 Checklist de Implementação
 
-Ao criar um Model:
+Ao criar um Model, TODOS os itens abaixo são obrigatórios:
 
 - [ ] **Extends Entity** correspondente
 - [ ] **Mixin EquatableMixin** adicionado
 - [ ] **Constructor** passa todos os parâmetros para `super`
 - [ ] **fromMap** implementado com tratamento de nulos
-- [ ] **fromEntity** implementado
-- [ ] **toEntity** implementado (geralmente `this`)
-- [ ] **toMap** implementado
-- [ ] **toCreate/toUpdate** implementados (se necessário)
+- [ ] **fromEntity** implementado (converte Entity → Model)
+- [ ] **toEntity** implementado (geralmente `get toEntity => this`)
+- [ ] **toMap** implementado (serializa Model → Map)
+- [ ] **toCreate/toUpdate** implementados (se necessário para operações específicas)
 - [ ] **props** lista todas as propriedades
 - [ ] **stringify** definido como `true`
-- [ ] **Tratamento de nulos** em todos os campos
-- [ ] **Formatação de dados** (CPF, telefone, datas)
+- [ ] **Tratamento de nulos** em todos os campos do fromMap
+- [ ] **Formatação de dados** (CPF, telefone, datas) no toMap
+- [ ] **Sub-models delegam serialização** (usar `SubModel.fromEntity(e).toMap` ao invés de montar maps inline)
 
 ---
 

@@ -48,6 +48,7 @@ Gerencia **ESTADO DA UI** e interação com usuário.
 - [Controllers](presentation/controllers.md) - Gerenciamento de estado
 - [Modules](presentation/modules.md) - Injeção de dependências e rotas
 - [Validators](presentation/validators.md) - Validação de formulários e inputs
+- [Tracking](presentation/tracking.md) - Tracking mixins para funis de conversão (Mixpanel)
 
 ## Fluxo de Dados
 

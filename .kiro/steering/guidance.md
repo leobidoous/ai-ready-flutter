@@ -84,6 +84,7 @@ All documentation paths in `Docs/` are relative to the `Docs/` workspace root. W
 - **[Docs/presentation/controllers.md](../../presentation/controllers.md)** - ValueNotifier-based state management
 - **[Docs/presentation/modules.md](../../presentation/modules.md)** - Flutter Modular DI configuration
 - **[Docs/presentation/validators.md](../../presentation/validators.md)** - Input validation logic
+- **[Docs/presentation/tracking.md](../../presentation/tracking.md)** - Tracking mixins for Mixpanel conversion funnels
 
 ## Key Documentation Principles
 
